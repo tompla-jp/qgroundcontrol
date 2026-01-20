@@ -1,4 +1,9 @@
 
+**これはQGroundControlのカスタム版です。**
+
+**以下は公式の原文であり、カスタマイズ内容に関するREADMEはその下になります。**
+
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/Dronecode/UX-Design/35d8148a8a0559cd4bcf50bfa2c94614983cce91/QGC/Branding/Deliverables/QGC_RGB_Logo_Horizontal_Positive_PREFERRED/QGC_RGB_Logo_Horizontal_Positive_PREFERRED.svg" alt="QGroundControl Logo" width="500">
 </p>
@@ -54,3 +59,54 @@ QGroundControl is *open-source*, meaning you have the power to shape it! Whether
 ---
 
 With QGroundControl, you're in full command of your UAV, ready to take your missions to the next level.
+
+---
+
+# QDC v5（Custom QGroundControl）
+
+**本リポジトリは公式 QGroundControl ではありません。**
+
+このリポジトリは、オープンソースプロジェクトであるQGroundControl（QGC）をベースに、特定用途向けのカスタマイズを行ったものです。
+主に、プロジェクト要件に対応するためのUI調整・機能追加・構成整理を含んでいます。
+
+---
+
+## リポジトリ
+
+本プロジェクトは、公式の QGroundControl リポジトリを元にしたカスタマイズ版です。
+
+以下のような変更・追加を含みます：
+
+- プロジェクト固有の UI / QML 拡張
+- 不要な生成物や機密情報を含まないための構成整理
+
+
+
+---
+
+## ディレクトリ構成
+
+主要なディレクトリの概要は以下のとおりです。
+
+- `src/` – QGC 本体のソースコード
+- `custom/` – 本プロジェクト固有のカスタマイズ
+- `android/` – Android 向けビルド設定
+- `cmake/` – CMake 補助スクリプト・ツールチェイン
+- `docs/` – ドキュメント
+- `resources/` – 画像・フォント等のリソース
+
+---
+
+## ビルドに関する注意
+
+- Android ビルドには、ローカル環境での署名設定が必要です。
+- 署名関連ファイルは本リポジトリには含まれていません。
+
+---
+
+## ライセンス
+
+本プロジェクトはQGroundControlをベースとしており、  
+ライセンスは元プロジェクトの条件に従います。
+
+(https://github.com/mavlink/qgroundcontrol/blob/master/.github/COPYING.md)
