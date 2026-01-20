@@ -94,3 +94,18 @@ docs/.vitepress/dist/
 
 CMakeUserPresets.json
 cpm_modules
+
+# Local environments and artifacts (external distribution)
+.venv/
+android/.gradle/
+android/gradle.properties.local
+android/keystore.properties
+keystore.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+*.apks
+*.idsig
+qgroundcontrol.zip
+qgc_startup*.log*

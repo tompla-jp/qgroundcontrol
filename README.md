@@ -44,6 +44,18 @@ QGroundControl is *open-source*, meaning you have the power to shape it! Whether
 
 ### 🔗 *Useful Links*
 
+### Custom Build (External Distribution)
+
+This repository is a custom QGroundControl build intended for external distribution.
+
+- License: QGroundControl is GPLv3. If you distribute binaries outside your organization, you must provide the corresponding source and include the license texts (see `LICENSE-GPL`, `LICENSE-APACHE`, `LICENSE.md`).
+- Signing: Never commit signing keys or passwords to this repository. Set the following in `~/.gradle/gradle.properties` or a local, untracked file such as `android/keystore.properties`:
+  - `androidKeystorePath=/absolute/path/to/keystore.jks`
+  - `androidKeystorePassword=your_password`
+  - `androidKeyAlias=your_alias`
+  - `androidKeyPassword=your_password`
+- Android build (summary): configure an Android build directory, build the `QGroundControl_make_apk` target, then zipalign and sign the APK with your keystore.
+
 - 🌐 [Official Website](http://qgroundcontrol.com)
 - 📘 [User Manual](https://docs.qgroundcontrol.com/en/)
 - 🛠️ [Developer Guide](https://dev.qgroundcontrol.com/en/)
