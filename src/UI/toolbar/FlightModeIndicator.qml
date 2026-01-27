@@ -20,9 +20,12 @@ import QGroundControl.FactSystem
 import QGroundControl.FactControls
 import QGroundControl.AutoPilotPlugin
 
-RowLayout {
-    id:         control
-    spacing:    0
+Item {
+    id:                 control
+    implicitWidth:      mainLayout.implicitWidth
+    implicitHeight:     mainLayout.implicitHeight
+    Layout.preferredWidth:  mainLayout.implicitWidth
+    Layout.preferredHeight: mainLayout.implicitHeight
 
     property bool   showIndicator:          true
     property var    expandedPageComponent
@@ -33,8 +36,12 @@ RowLayout {
     property bool allowEditMode:    true
     property bool editMode:         false
 
+    QGCPalette { id: qgcPal }
+
     RowLayout {
-        Layout.fillWidth: true
+        id:             mainLayout
+        anchors.fill:   parent
+        spacing:        0
 
         QGCColoredImage {
             id:         flightModeIcon
@@ -50,12 +57,13 @@ RowLayout {
             text:               activeVehicle ? activeVehicle.flightMode : qsTr("N/A", "No data to display")
             font.pointSize:     fontPointSize
             Layout.alignment:   Qt.AlignCenter
-
-            MouseArea {
-                anchors.fill:   parent
-                onClicked:      mainWindow.showIndicatorDrawer(drawerComponent, control)
-            }
         }
+    }
+
+    QGCMouseArea {
+        fillItem:   mainLayout
+        z:          1
+        onClicked:  mainWindow.showIndicatorDrawer(drawerComponent, control)
     }
 
     Component {
@@ -135,18 +143,18 @@ RowLayout {
                     spacing: ScreenTools.defaultFontPixelWidth
                     visible: editMode || !hiddenFlightModesList.find(item => { return item === modelData } )
 
-                    QGCButton {
+                    QGCDelayButton {
                         id:                 modeButton
                         text:               modelData
+                        delay:              flightModeSettings.requireModeChangeConfirmation.rawValue ? defaultDelay : 0
                         Layout.fillWidth:   true
 
-                        onClicked: {
+                        onActivated: {
                             if (editMode) {
                                 parent.children[1].toggle()
                                 parent.children[1].clicked()
                             } else {
-                                var controller = globals.guidedControllerFlyView
-                                controller.confirmAction(controller.actionSetFlightMode, modelData)
+                                activeVehicle.flightMode = modelData
                                 mainWindow.closeIndicatorDrawer()
                             }
                         }

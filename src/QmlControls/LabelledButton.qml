@@ -17,6 +17,8 @@ RowLayout {
     property alias label:                   _label.text
     property alias buttonText:              _button.text
     property real  buttonPreferredWidth:    -1
+    property real  buttonHeightFactor:      ScreenTools.isMobile ? 0.5 : 0.32
+    property real  buttonTextPixelSize:     NaN
 
     signal clicked
 
@@ -25,13 +27,16 @@ RowLayout {
 
     QGCLabel { 
         id:                 _label
-        Layout.fillWidth:   true 
+        Layout.fillWidth:   true
+        font.pointSize:     ScreenTools.defaultFontPointSize
     }
 
     QGCButton {
         id:                     _button
         Layout.preferredWidth:  buttonPreferredWidth
+        heightFactor:           buttonHeightFactor
+        settingsButtonTextPixelSize: buttonTextPixelSize
+        pointSize:              ScreenTools.defaultFontPointSize
         onClicked:              _root.clicked()
     }
 }
-

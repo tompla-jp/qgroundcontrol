@@ -102,7 +102,7 @@ Rectangle {
                         width:      _summaryBoxWidth
                         height:     ScreenTools.defaultFontPixelHeight * 13
                         color:      qgcPal.windowShade
-                        visible:    modelData.summaryQmlSource.toString() !== ""
+                        visible:    _componentName !== "" && modelData.summaryQmlSource.toString() !== ""
                         border.width: 1
                         border.color: qgcPal.text
                         Component.onCompleted: {
@@ -110,13 +110,14 @@ Rectangle {
                         }
 
                         readonly property real titleHeight: ScreenTools.defaultFontPixelHeight * 2
+                        readonly property string _componentName: modelData && modelData.name ? modelData.name : ""
 
                         // Title bar
                         QGCButton {
                             id:     titleBar
                             width:  parent.width
                             height: titleHeight
-                            text:   capitalizeWords(modelData.name)
+                            text:   capitalizeWords(_componentName)
 
                             // Setup indicator
                             Rectangle {

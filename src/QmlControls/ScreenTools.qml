@@ -36,6 +36,7 @@ Item {
     readonly property real smallFontPointRatio:      0.75
     readonly property real mediumFontPointRatio:     1.25
     readonly property real largeFontPointRatio:      1.5
+    readonly property real defaultUiScale:           0.79
 
     /// You can use these properties to position ui elements in a screen resolution independent manner. Using fixed positioning values should not
     /// be done. All positioning should be done using anchors or a ratio of the defaultFontPixelHeight and defaultFontPixelWidth values. This way
@@ -175,6 +176,14 @@ Item {
     }
 
     Text {
+        id:     _openSansMeasure
+        text:   "X"
+        visible: false
+        font.family: "Open Sans"
+        property real   fontHeight:   contentHeight
+    }
+
+    Text {
         id:     _textMeasure
         text:   "X"
         font.family:    normalFontFamily
@@ -201,12 +210,36 @@ Item {
             } else {
                 platformFontPointSize = _defaultFont.font.pointSize;
             }
+            var platformPointSizeRaw = platformFontPointSize
             //-- See if we are using a custom size
             var _appFontPointSizeFact = QGroundControl.settingsManager.appSettings.appFontPointSize
+            if (normalFontFamily !== "Open Sans") {
+                _textMeasure.font.pointSize = platformPointSizeRaw
+                _openSansMeasure.font.pointSize = platformPointSizeRaw
+                var actualHeight = _textMeasure.fontHeight
+                var referenceHeight = _openSansMeasure.fontHeight
+                if (actualHeight > 0 && referenceHeight > actualHeight) {
+                    var adjust = referenceHeight / actualHeight
+                    if (adjust > 1.05) {
+                        platformFontPointSize = Math.min(_appFontPointSizeFact.max, Math.round(platformPointSizeRaw * adjust))
+                    }
+                }
+            }
             var baseSize = _appFontPointSizeFact.value
+            var scaledDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * defaultUiScale))
+            // Migrate legacy default scaling (0.79) back to current default.
+            var legacyDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * 0.79))
+            if (baseSize === legacyDefault && defaultUiScale !== 0.79) {
+                baseSize = scaledDefault
+                _appFontPointSizeFact.value = baseSize
+            }
+            if (baseSize === 0 || baseSize === platformFontPointSize) {
+                baseSize = scaledDefault
+                _appFontPointSizeFact.value = baseSize
+            }
             //-- Sanity check
             if(baseSize < _appFontPointSizeFact.min || baseSize > _appFontPointSizeFact.max) {
-                baseSize = platformFontPointSize;
+                baseSize = scaledDefault;
                 _appFontPointSizeFact.value = baseSize
             }
             //-- Set size saved in settings

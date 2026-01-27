@@ -76,6 +76,8 @@ SettingsPage {
             QGCButton {
                 text:       qsTr("Send to Vehicle")
                 enabled:    _activeVehicle
+                heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
+                settingsButtonHeightFactor: ScreenTools.isMobile ? 0.32 : 0.28
 
                 onClicked: {
                     sendToVehiclePrompt.visible = false

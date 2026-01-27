@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<mavlink>
+  <include>common.xml</include>
+  <include>development.xml</include>
+  <messages>
+    <message id="42000" name="QVIO_STATUS">
+      <description>QVIO health metrics streamed from VOXL to GCS.</description>
+      <field type="uint32_t" name="time_boot_ms">Time since boot on VOXL (ms)</field>
+      <field type="float" name="quality">QVIO quality percentage [-1 means invalid/stale]</field>
+      <field type="int32_t" name="feature_count">In-state feature count [-1 means invalid/stale]</field>
+      <field type="uint32_t" name="error_code">QVIO error bitmask from voxl-qvio-server</field>
+      <field type="uint8_t" name="state">QVIO state value from voxl-qvio-server</field>
+      <field type="uint8_t" name="stale">1 when data is stale or unavailable</field>
+      <field type="char[50]" name="error_text">ASCII error or warning text (null-terminated if shorter than 50)</field>
+    </message>
+  </messages>
+  <enums>
+    <enum name="MAV_CMD">
+      <entry value="218" name="MAV_CMD_DO_AUX_FUNCTION" hasLocation="false" isDestination="false">
+        <description>Trigger an auxiliary function switch.</description>
+      </entry>
+      <entry value="42650" name="MAV_CMD_FLASH_BOOTLOADER" hasLocation="false" isDestination="false">
+        <description>Flash bootloader.</description>
+      </entry>
+    </enum>
+    <enum name="MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL">
+      <entry value="0" name="MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_LOW">
+        <description>Switch Low.</description>
+      </entry>
+      <entry value="1" name="MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_MIDDLE">
+        <description>Switch Middle.</description>
+      </entry>
+      <entry value="2" name="MAV_CMD_DO_AUX_FUNCTION_SWITCH_LEVEL_HIGH">
+        <description>Switch High.</description>
+      </entry>
+    </enum>
+  </enums>
+</mavlink>

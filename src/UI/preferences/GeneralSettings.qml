@@ -97,7 +97,7 @@ SettingsPage {
 
                 QGCButton {
                     Layout.preferredWidth:  height
-                    height:                 baseFontEdit.height * 1.5
+                    height:                 ScreenTools.implicitTextFieldHeight
                     text:                   "-"
                     onClicked: {
                         if (_appFontPointSize.value > _appFontPointSize.min) {
@@ -114,7 +114,7 @@ SettingsPage {
 
                 QGCButton {
                     Layout.preferredWidth:  height
-                    height:                 baseFontEdit.height * 1.5
+                    height:                 ScreenTools.implicitTextFieldHeight
                     text:                   "+"
                     onClicked: {
                         if (_appFontPointSize.value < _appFontPointSize.max) {
@@ -145,6 +145,7 @@ SettingsPage {
 
             QGCButton {
                 text:       qsTr("Browse")
+                heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
                 onClicked:  savePathBrowseDialog.openForLoad()
                 QGCFileDialog {
                     id:                 savePathBrowseDialog
@@ -202,6 +203,7 @@ SettingsPage {
 
             QGCButton {
                 text:       qsTr("Browse")
+                heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
                 onClicked:  userBrandImageIndoorBrowseDialog.openForLoad()
 
                 QGCFileDialog {
@@ -238,6 +240,7 @@ SettingsPage {
 
             QGCButton {
                 text:       qsTr("Browse")
+                heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
                 onClicked:  userBrandImageOutdoorBrowseDialog.openForLoad()
 
                 QGCFileDialog {
@@ -253,6 +256,7 @@ SettingsPage {
         LabelledButton {
             label:      qsTr("Reset Images")
             buttonText: qsTr("Reset")
+            buttonHeightFactor: ScreenTools.isMobile ? 0.5 : 0.3
             onClicked:  {
                 _userBrandImageIndoor.rawValue = ""
                 _userBrandImageOutdoor.rawValue = ""

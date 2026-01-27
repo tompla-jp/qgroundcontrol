@@ -334,17 +334,20 @@ ApplicationWindow {
             id:         toolSelectDialog
             //title:      qsTr("Select Tool")
 
-            property real _toolButtonHeight:    ScreenTools.defaultFontPixelHeight * 3
+            property real _toolButtonHeight:    ScreenTools.defaultFontPixelHeight * 2.25
             property real _margins:             ScreenTools.defaultFontPixelWidth
 
             contentComponent: Component {
-                ColumnLayout {
-                    width:  innerLayout.width + (toolSelectDialog._margins * 2)
-                    height: innerLayout.height + (toolSelectDialog._margins * 2)
+                ScrollView {
+                    id: toolSelectScroll
+                    width: innerLayout.implicitWidth + (toolSelectDialog._margins * 2)
+                    height: Math.min(innerLayout.implicitHeight + (toolSelectDialog._margins * 2), mainWindow.height * 0.5)
 
-                    ColumnLayout {
+                    contentItem: ColumnLayout {
                         id:             innerLayout
-                        Layout.margins: toolSelectDialog._margins
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.margins: toolSelectDialog._margins
                         spacing:        ScreenTools.defaultFontPixelWidth
 
                         SubMenuButton {
@@ -500,6 +503,7 @@ ApplicationWindow {
             anchors.top:    parent.top
             height:         ScreenTools.toolbarHeight
             color:          qgcPal.toolbarBackground
+            z:              QGroundControl.zOrderTopMost + 1
 
             RowLayout {
                 id:                 toolDrawerToolbarLayout

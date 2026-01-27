@@ -25,6 +25,8 @@ Item {
     id: root
 
     default property alias contentItem: mainLayout.data
+    property real settingsButtonHeightFactor: ScreenTools.isMobile ? 0.5 : 0.3
+    property real settingsButtonTextPixelSize: ScreenTools.defaultFontPixelHeight
 
     QGCFlickable {
         anchors.fill:   parent

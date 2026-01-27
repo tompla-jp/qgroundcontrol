@@ -10,6 +10,7 @@
 #include "QtMultimediaReceiver.h"
 #include "QGCLoggingCategory.h"
 
+#include <QtCore/QDateTime>
 #include <QtMultimedia/QMediaCaptureSession>
 #include <QtMultimedia/QMediaFormat>
 #include <QtMultimedia/QMediaMetaData>
@@ -220,6 +221,7 @@ void QtMultimediaReceiver::startDecoding(void *sink)
     _videoFrameUpdater = connect(_videoSink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &frame) {
         if (frame.isValid()) {
             _frameTimer.start();
+            _setLastFrameTimeMs(QDateTime::currentMSecsSinceEpoch());
         }
     });
     _rhi = _videoSink->rhi();

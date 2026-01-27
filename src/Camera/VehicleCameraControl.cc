@@ -440,7 +440,7 @@ VehicleCameraControl::stopVideoRecording()
 void
 VehicleCameraControl::setCameraModeVideo()
 {
-    if(!_resetting && hasModes()) {
+    if(!_resetting && (hasModes() || (capturesVideo() && capturesPhotos()))) {
         qCDebug(CameraControlLog) << "setCameraModeVideo()";
         //-- Does it have a mode parameter?
         Fact* pMode = mode();
@@ -469,7 +469,7 @@ VehicleCameraControl::setCameraModeVideo()
 void
 VehicleCameraControl::setCameraModePhoto()
 {
-    if(!_resetting && hasModes()) {
+    if(!_resetting && (hasModes() || (capturesVideo() && capturesPhotos()))) {
         qCDebug(CameraControlLog) << "setCameraModePhoto()";
         //-- Does it have a mode parameter?
         Fact* pMode = mode();

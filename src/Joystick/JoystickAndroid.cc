@@ -17,6 +17,16 @@
 
 QGC_LOGGING_CATEGORY(JoystickAndroidLog, "qgc.joystick.joystickandroid")
 
+namespace {
+
+bool _isVirtualInputDeviceName(const QString &name)
+{
+    const QString lowerName = name.toLower();
+    return lowerName.contains("uinput") || lowerName.contains("goodix");
+}
+
+} // namespace
+
 QList<int> JoystickAndroid::_androidBtnList(_androidBtnListCount);
 int JoystickAndroid::ACTION_DOWN = 0;
 int JoystickAndroid::ACTION_UP = 0;
@@ -101,6 +111,10 @@ QMap<QString, Joystick*> JoystickAndroid::discover()
 
         const QString id = inputDevice.callObjectMethod("getDescriptor", "()Ljava/lang/String;").toString();
         const QString name = inputDevice.callObjectMethod("getName", "()Ljava/lang/String;").toString();
+
+        if (_isVirtualInputDeviceName(name)) {
+            continue;
+        }
 
         names.push_back(name);
 

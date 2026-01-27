@@ -32,6 +32,7 @@ RowLayout {
 
     QGCButton {
         text: qsTr("Browse")
+        heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
         onClicked: filePicker.openForLoad()
     }
 

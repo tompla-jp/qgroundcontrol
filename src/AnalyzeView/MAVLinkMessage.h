@@ -67,6 +67,9 @@ signals:
 
 private:
     void _updateFields();
+    bool _isCustomQvioStatus(const mavlink_message_t &message) const;
+    void _initCustomQvioFields();
+    void _updateCustomQvioFields(const mavlink_message_t &message);
 
     mavlink_message_t _message{};
     QmlObjectListModel *_fields = nullptr;
@@ -77,4 +80,5 @@ private:
     uint64_t _lastCount = 0;
     bool _fieldSelected = false;
     bool _selected = false;
+    bool _isCustomQvio = false;
 };

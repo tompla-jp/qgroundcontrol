@@ -29,6 +29,7 @@ RowLayout {
     QGCLabel {
         Layout.fillWidth:   true
         text:               label
+        font.pointSize:     ScreenTools.defaultFontPointSize
     }
 
     FactTextField {
@@ -36,4 +37,3 @@ RowLayout {
         Layout.preferredWidth:  textFieldPreferredWidth
     }
 }
-

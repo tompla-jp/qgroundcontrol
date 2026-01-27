@@ -13,6 +13,8 @@
 #include <QtCore/QSize>
 #include <QtCore/QTimer>
 
+#include <atomic>
+
 class QGCVideoStreamInfo;
 class QQuickItem;
 
@@ -35,11 +37,12 @@ public:
     bool lowLatency() const { return _lowLatency; }
     QGCVideoStreamInfo *videoStreamInfo() { return _videoStreamInfo; }
     QString recordingOutput() const { return _recordingOutput; }
+    qint64 lastFrameTimeMs() const { return _lastFrameTimeMs.load(std::memory_order_relaxed); }
 
     virtual void setSink(void *sink) { if (sink != _sink) { _sink = sink; emit sinkChanged(_sink); } }
     virtual void setWidget(QQuickItem *widget) { if (widget != _widget) { _widget = widget; emit widgetChanged(_widget); } }
     void setName(const QString &name) { if (name != _name) { _name = name; emit nameChanged(_name); } }
-    void setUri(const QString &uri) { if (uri != _uri) { _uri = uri; emit uriChanged(_uri); } }
+    void setUri(const QString &uri) { if (uri != _uri) { _uri = uri; _lastFrameTimeMs.store(0, std::memory_order_relaxed); emit uriChanged(_uri); } }
     void setStarted(bool started) { if (started != _started) { _started = started; emit startedChanged(_started); } }
     void setLowLatency(bool lowLatency) { if (lowLatency != _lowLatency) { _lowLatency = lowLatency; emit lowLatencyChanged(_lowLatency); } }
     void setVideoStreamInfo(QGCVideoStreamInfo *videoStreamInfo) { if (videoStreamInfo != _videoStreamInfo) { _videoStreamInfo = videoStreamInfo; emit videoStreamInfoChanged(); } }
@@ -115,6 +118,9 @@ protected:
     bool _endOfStream = false;
     bool _removingDecoder = false;
     bool _removingRecorder = false;
+    std::atomic<qint64> _lastFrameTimeMs{0};
+
+    void _setLastFrameTimeMs(qint64 timeMs) { _lastFrameTimeMs.store(timeMs, std::memory_order_relaxed); }
     // buffer:
     //      -1 - disable buffer and video sync
     //      0 - default buffer length

@@ -18,11 +18,15 @@
 
 #include "QGCApplication.h"
 
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
 #include <QtCore/QEvent>
 #include <QtCore/QFile>
+#include <QtCore/QFileInfo>
 #include <QtCore/QMetaMethod>
 #include <QtCore/QMetaObject>
 #include <QtCore/QRegularExpression>
+#include <QtCore/QStandardPaths>
 #include <QtGui/QFontDatabase>
 #include <QtGui/QIcon>
 #include <QtNetwork/QNetworkProxyFactory>
@@ -33,6 +37,9 @@
 #include <QtQuickControls2/QQuickStyle>
 
 #include <QtCore/private/qthread_p.h>
+#ifdef Q_OS_ANDROID
+#include <QtCore/QJniObject>
+#endif
 
 #include "QGCLogging.h"
 #include "AudioOutput.h"
@@ -63,6 +70,10 @@
 #include "QGroundControlQmlGlobal.h"
 #include "SettingsManager.h"
 #include "AppSettings.h"
+#include <QLocale>
+#ifdef QGC_CUSTOM_BUILD
+#include "CustomQGCApplication.h"
+#endif
 #include "ShapeFileHelper.h"
 #include "SyslinkComponentController.h"
 #include "UDPLink.h"
@@ -90,6 +101,72 @@
 
 QGC_LOGGING_CATEGORY(QGCApplicationLog, "qgc.qgcapplication")
 
+namespace {
+// Lightweight file logger for Android early-exit diagnosis
+#ifdef Q_OS_ANDROID
+void writeAndroidStartupTrace(const QString& message)
+{
+    static const char kLoggerClass[] = "org/mavlink/qgroundcontrol/QGCStartupLogger";
+    if (!QJniObject::isClassAvailable(kLoggerClass)) {
+        return;
+    }
+
+    const QJniObject jMessage = QJniObject::fromString(message);
+    if (!jMessage.isValid()) {
+        return;
+    }
+
+    QJniObject::callStaticMethod<void>(
+        kLoggerClass,
+        "writeFromNative",
+        "(Ljava/lang/String;)V",
+        jMessage.object<jstring>());
+}
+#endif
+
+void writeStartupTrace(const QString& message)
+{
+#ifdef Q_OS_ANDROID
+    writeAndroidStartupTrace(message);
+#endif
+    const QString timestamped = QStringLiteral("[%1] %2\n")
+        .arg(QDateTime::currentDateTimeUtc().toString(Qt::ISODate), message);
+
+    const auto writeToFile = [&timestamped](const QString& path) {
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile f(path);
+        if (f.open(QIODevice::Append | QIODevice::Text)) {
+            f.write(timestamped.toUtf8());
+            f.close();
+        }
+    };
+
+    // Internal app data (not readable without run-as unless debuggable)
+    const QString internalBase = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (!internalBase.isEmpty()) {
+        writeToFile(internalBase + "/startup.log");
+    }
+
+    // External (readable via adb shell without run-as)
+    const QString externalBase = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    if (!externalBase.isEmpty()) {
+        writeToFile(externalBase + "/qgc_startup.log");
+    }
+
+#ifdef Q_OS_ANDROID
+    // External app media directory (user-accessible without adb)
+    const QString mediaBase = QStringLiteral("/storage/emulated/0/Android/media/org.mavlink.qgroundcontrol");
+    writeToFile(mediaBase + "/qgc_startup.log");
+
+    // App-specific external data directory (may be user-accessible)
+    const QString externalDataBase = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    if (!externalDataBase.isEmpty()) {
+        writeToFile(externalDataBase + "/qgc_startup.log");
+    }
+#endif
+}
+} // namespace
+
 // Qml Singleton factories
 
 static QObject *mavlinkSingletonFactory(QQmlEngine*, QJSEngine*)
@@ -102,6 +179,8 @@ QGCApplication::QGCApplication(int &argc, char *argv[], bool unitTesting, bool s
     , _runningUnitTests(unitTesting)
     , _simpleBootTest(simpleBootTest)
 {
+    QLocale::setDefault(QLocale(QLocale::Japanese));
+    writeStartupTrace(QStringLiteral("QGCApplication ctor start"));
     _msecsElapsedTime.start();
 
     // Setup for network proxy support
@@ -265,6 +344,7 @@ QGCApplication::~QGCApplication()
 
 void QGCApplication::init()
 {
+    writeStartupTrace(QStringLiteral("QGCApplication init start"));
     SettingsManager::instance()->init();
 
     LinkManager::registerQmlTypes();
@@ -325,6 +405,7 @@ void QGCApplication::init()
     } else if (!_runningUnitTests) {
         _initForNormalAppBoot();
     }
+    writeStartupTrace(QStringLiteral("QGCApplication init end"));
 }
 
 void QGCApplication::_initVideo()
@@ -341,21 +422,44 @@ void QGCApplication::_initVideo()
 
 void QGCApplication::_initForNormalAppBoot()
 {
+    writeStartupTrace(QStringLiteral("initForNormalAppBoot begin"));
+
     _initVideo(); // GStreamer must be initialized before QmlEngine
 
     QQuickStyle::setStyle("Basic");
     QGCCorePlugin::instance()->init();
     MAVLinkProtocol::instance()->init();
     MultiVehicleManager::instance()->init();
+#ifdef QGC_CUSTOM_BUILD
+    _customApplication = new CustomQGCApplication(this);
+#endif
     _qmlAppEngine = QGCCorePlugin::instance()->createQmlApplicationEngine(this);
-    QObject::connect(_qmlAppEngine, &QQmlApplicationEngine::objectCreationFailed, this, QCoreApplication::quit, Qt::QueuedConnection);
+    writeStartupTrace(QStringLiteral("QQmlApplicationEngine created"));
+    // Log QML warnings/errors so Android early-exits can be diagnosed
+    const auto engineWarnings = std::make_shared<QList<QQmlError>>();
+    QObject::connect(_qmlAppEngine, &QQmlApplicationEngine::warnings, this, [engineWarnings](const QList<QQmlError>& warnings) {
+        *engineWarnings = warnings;
+        for (const auto& warning : warnings) {
+            qCWarning(QGCApplicationLog) << "QML warning:" << warning;
+            writeStartupTrace(QStringLiteral("QML warning: %1").arg(warning.toString()));
+        }
+    });
+    QObject::connect(_qmlAppEngine, &QQmlApplicationEngine::objectCreationFailed, this, [this, engineWarnings]() {
+        for (const auto& error : *engineWarnings) {
+            qCCritical(QGCApplicationLog) << "QML error:" << error;
+            writeStartupTrace(QStringLiteral("QML error: %1").arg(error.toString()));
+        }
+        QCoreApplication::quit();
+    }, Qt::QueuedConnection);
     QGCCorePlugin::instance()->createRootWindow(_qmlAppEngine);
+    writeStartupTrace(QStringLiteral("Root window created"));
 
     AudioOutput::instance()->init(SettingsManager::instance()->appSettings()->audioMuted());
     FollowMe::instance()->init();
     QGCPositionManager::instance()->init();
     LinkManager::instance()->init();
     VideoManager::instance()->init(mainRootWindow());
+    writeStartupTrace(QStringLiteral("VideoManager initialized"));
 
     // Image provider for Optical Flow
     _qmlAppEngine->addImageProvider(_qgcImageProviderId, new QGCImageProvider());
@@ -726,7 +830,9 @@ bool QGCApplication::event(QEvent *e)
         // On OSX if the user selects Quit from the menu (or Command-Q) the ApplicationWindow does not signal closing. Instead you get a Quit event here only.
         // This in turn causes the standard QGC shutdown sequence to not run. So in this case we close the window ourselves such that the
         // signal is sent and the normal shutdown sequence runs.
-        const bool forceClose = _mainRootWindow->property("_forceClose").toBool();
+        // Android can deliver a Quit before the QML root window is available; treat that as already closed.
+        const bool forceClose = !_mainRootWindow || _mainRootWindow->property("_forceClose").toBool();
+        writeStartupTrace(QStringLiteral("Quit event forceClose=%1").arg(forceClose));
         qCDebug(QGCApplicationLog) << "Quit event" << forceClose;
         // forceClose
         //  true:   Standard QGC shutdown sequence is complete. Let the app quit normally by falling through to the base class processing.
@@ -750,6 +856,7 @@ QGCImageProvider *QGCApplication::qgcImageProvider()
 void QGCApplication::shutdown()
 {
     qCDebug(QGCApplicationLog) << "Exit";
+    writeStartupTrace(QStringLiteral("shutdown"));
 
     if (_videoManagerInitialized) {
         VideoManager::instance()->cleanup();
@@ -795,3 +902,33 @@ QString QGCApplication::bigSizeMBToString(quint64 size_MB)
     }
     return result;
 }
+
+#ifdef QGC_CUSTOM_BUILD
+void QGCApplication::recordStart()
+{
+    if (_customApplication) {
+        _customApplication->recordStart();
+    }
+}
+
+void QGCApplication::recordStop()
+{
+    if (_customApplication) {
+        _customApplication->recordStop();
+    }
+}
+
+void QGCApplication::snapshot()
+{
+    if (_customApplication) {
+        _customApplication->snapshot();
+    }
+}
+
+void QGCApplication::swapCamera()
+{
+    if (_customApplication) {
+        _customApplication->swapCamera();
+    }
+}
+#endif

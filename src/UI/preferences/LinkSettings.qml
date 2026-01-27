@@ -176,6 +176,7 @@ SettingsPage {
                 }
                 QGCButton {
                     text:       object.link ? qsTr("Disconnect") : qsTr("Connect")
+                    heightFactor: ScreenTools.isMobile ? 0.5 : 0.3
                     onClicked: {
                         if (object.link) {
                             object.link.disconnect()
@@ -205,6 +206,7 @@ SettingsPage {
             title:                  originalConfig ? qsTr("Edit Link") : qsTr("Add New Link")
             buttons:                Dialog.Save | Dialog.Cancel
             acceptButtonEnabled:    nameField.text !== ""
+            dialogButtonHeightFactor: ScreenTools.isMobile ? 0.32 : 0.28
 
             property var originalConfig
             property var editingConfig

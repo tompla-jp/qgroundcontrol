@@ -58,6 +58,11 @@
 #include "GimbalController.h"
 #include "MavlinkSettings.h"
 #include "APM.h"
+#ifdef QGC_CUSTOM_BUILD
+#include "CustomQGCApplication.h"
+#include "QVIOHandler.h"
+#include "ToFHandler.h"
+#endif
 
 #ifdef QGC_UTM_ADAPTER
 #include "UTMSPVehicle.h"
@@ -68,6 +73,7 @@
 #endif
 
 #include <QtCore/QDateTime>
+#include <cstring>
 
 QGC_LOGGING_CATEGORY(VehicleLog, "VehicleLog")
 
@@ -596,6 +602,33 @@ void Vehicle::_mavlinkMessageReceived(LinkInterface* link, mavlink_message_t mes
     case MAVLINK_MSG_ID_FENCE_STATUS:
         _handleFenceStatus(message);
         break;
+#if defined(QGC_CUSTOM_BUILD)
+    case MAVLINK_MSG_ID_DISTANCE_SENSOR:
+        _handleDistanceSensor(message);
+        break;
+#endif
+#ifdef QGC_CUSTOM_BUILD
+#ifdef MAVLINK_MSG_ID_QVIO_STATUS
+    case MAVLINK_MSG_ID_QVIO_STATUS:
+#if MAVLINK_MSG_ID_QVIO_STATUS != 42000
+    case 42000:    // Custom VOXL QVIO_STATUS
+#endif
+        _handleQvioStatus(message);
+        break;
+#else
+    case 42000:    // Custom VOXL QVIO_STATUS
+        _handleQvioStatus(message);
+        break;
+#endif
+#ifdef MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY
+    case MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY:
+        _handleQvioDebugArray(message);
+        break;
+#endif
+    case MAVLINK_MSG_ID_NAMED_VALUE_FLOAT:
+        _handleNamedValueFloat(link, message);
+        break;
+#endif
 
     case MAVLINK_MSG_ID_EVENT:
     case MAVLINK_MSG_ID_CURRENT_EVENT_SEQUENCE:
@@ -728,6 +761,138 @@ void Vehicle::_handleCameraImageCaptured(const mavlink_message_t& message)
         _cameraTriggerPoints.append(new QGCQGeoCoordinate(imageCoordinate, this));
     }
 }
+
+#if defined(QGC_CUSTOM_BUILD) && defined(MAVLINK_MSG_ID_QVIO_STATUS)
+void Vehicle::_handleQvioStatus(const mavlink_message_t& message)
+{
+    mavlink_qvio_status_t status{};
+    mavlink_msg_qvio_status_decode(&message, &status);
+
+    if (auto customApp = qgcApp()->customApplication()) {
+        if (auto handler = customApp->qvioHandler()) {
+            handler->updateFromStatus(status);
+        }
+    }
+}
+#endif
+#if defined(QGC_CUSTOM_BUILD) && defined(MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY)
+void Vehicle::_handleQvioDebugArray(const mavlink_message_t& message)
+{
+    mavlink_debug_float_array_t pkg{};
+    mavlink_msg_debug_float_array_decode(&message, &pkg);
+
+    // Ensure name is treated as a null-terminated string.
+    QByteArray nameBytes(reinterpret_cast<const char*>(pkg.name), static_cast<int>(sizeof(pkg.name)));
+    const QString name = QString::fromLatin1(nameBytes).trimmed();
+    if (name != QStringLiteral("QVIO_STATUS")) {
+        return;
+    }
+
+    if (auto customApp = qgcApp()->customApplication()) {
+        if (auto handler = customApp->qvioHandler()) {
+            handler->setQuality(pkg.data[0]);
+            handler->setFeatureCount(static_cast<int>(pkg.data[1]));
+            handler->setErrorCode(static_cast<uint>(pkg.data[2]));
+        }
+    }
+}
+#endif
+#if defined(QGC_CUSTOM_BUILD)
+void Vehicle::_handleNamedValueFloat(LinkInterface *link, const mavlink_message_t& message)
+{
+    mavlink_named_value_float_t pkt{};
+    mavlink_msg_named_value_float_decode(&message, &pkt);
+
+    // name is 10 bytes, null-terminated; normalize to string
+    QByteArray nameBytes(reinterpret_cast<const char*>(pkt.name), static_cast<int>(sizeof(pkt.name)));
+    const QString name = QString::fromLatin1(nameBytes.constData()).trimmed();
+
+    if (name == QStringLiteral("WIFI_RSSI")) {
+        const SharedLinkInterfacePtr primaryLink = _vehicleLinkManager->primaryLink().lock();
+        if (!primaryLink || primaryLink.get() != link) {
+            return;
+        }
+        if (_wifiRSSITimeBootMs == pkt.time_boot_ms) {
+            return;
+        }
+        _wifiRSSITimeBootMs = pkt.time_boot_ms;
+        emit wifiRSSITimeBootMsChanged(_wifiRSSITimeBootMs);
+        if (_wifiRSSI != pkt.value) {
+            _wifiRSSI = pkt.value;
+            emit wifiRSSIChanged(_wifiRSSI);
+        }
+        return;
+    }
+
+    if (name == QStringLiteral("QVIO_QUAL")) {
+        if (auto customApp = qgcApp()->customApplication()) {
+            if (auto handler = customApp->qvioHandler()) {
+                handler->setQuality(pkt.value);
+            }
+        }
+    }
+}
+#endif
+#if defined(QGC_CUSTOM_BUILD) && !defined(MAVLINK_MSG_ID_QVIO_STATUS)
+void Vehicle::_handleQvioStatus(const mavlink_message_t& message)
+{
+    struct {
+        uint32_t time_boot_ms = 0;
+        float quality = 0.f;
+        int32_t feature_count = 0;
+        uint32_t error_code = 0;
+        uint8_t state = 0;
+        uint8_t stale = 0;
+        char error_text[50]{};
+    } status;
+
+    const uint8_t *const payload = reinterpret_cast<const uint8_t*>(message.payload64);
+    const int len = message.len;
+    auto copyIfAvailable = [payload, len](void *dst, int offset, int size) {
+        if (len >= offset + size) {
+            std::memcpy(dst, payload + offset, static_cast<size_t>(size));
+        }
+    };
+    int offset = 0;
+    copyIfAvailable(&status.time_boot_ms, offset, 4); offset += 4;
+    copyIfAvailable(&status.quality, offset, 4); offset += 4;
+    copyIfAvailable(&status.feature_count, offset, 4); offset += 4;
+    copyIfAvailable(&status.error_code, offset, 4); offset += 4;
+    copyIfAvailable(&status.state, offset, 1); offset += 1;
+    copyIfAvailable(&status.stale, offset, 1); offset += 1;
+    const int textAvail = qMax(0, len - offset);
+    const int copyLen = qMin(static_cast<int>(sizeof(status.error_text) - 1), textAvail);
+    if (copyLen > 0) {
+        std::memcpy(status.error_text, payload + offset, static_cast<size_t>(copyLen));
+        status.error_text[copyLen] = '\0';
+    }
+
+    if (auto customApp = qgcApp()->customApplication()) {
+        if (auto handler = customApp->qvioHandler()) {
+            handler->setQuality(status.quality);
+            handler->setState(status.state);
+            handler->setStale(status.stale > 0);
+            handler->setFeatureCount(status.feature_count);
+            handler->setErrorCode(status.error_code);
+            handler->setErrorText(QString::fromLatin1(status.error_text));
+        }
+    }
+}
+#endif
+#if defined(QGC_CUSTOM_BUILD)
+void Vehicle::_handleDistanceSensor(const mavlink_message_t& message)
+{
+    mavlink_distance_sensor_t dist{};
+    mavlink_msg_distance_sensor_decode(&message, &dist);
+
+    if (auto customApp = qgcApp()->customApplication()) {
+        if (auto handler = customApp->tofHandler()) {
+            const int rawCm = static_cast<int>(dist.current_distance);
+            handler->setDistanceMm(rawCm * 10);
+        }
+    }
+}
+#endif
 
 // TODO: VehicleFactGroup
 void Vehicle::_handleGpsRawInt(mavlink_message_t& message)

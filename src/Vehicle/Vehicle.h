@@ -194,6 +194,8 @@ public:
     Q_PROPERTY(QString              vehicleImageOutline         READ vehicleImageOutline                                            CONSTANT)
     Q_PROPERTY(int                  telemetryRRSSI              READ telemetryRRSSI                                                 NOTIFY telemetryRRSSIChanged)
     Q_PROPERTY(int                  telemetryLRSSI              READ telemetryLRSSI                                                 NOTIFY telemetryLRSSIChanged)
+    Q_PROPERTY(float                wifiRSSI                    READ wifiRSSI                                                       NOTIFY wifiRSSIChanged)
+    Q_PROPERTY(uint                 wifiRSSITimeBootMs          READ wifiRSSITimeBootMs                                             NOTIFY wifiRSSITimeBootMsChanged)
     Q_PROPERTY(unsigned int         telemetryRXErrors           READ telemetryRXErrors                                              NOTIFY telemetryRXErrorsChanged)
     Q_PROPERTY(unsigned int         telemetryFixed              READ telemetryFixed                                                 NOTIFY telemetryFixedChanged)
     Q_PROPERTY(unsigned int         telemetryTXBuffer           READ telemetryTXBuffer                                              NOTIFY telemetryTXBufferChanged)
@@ -564,6 +566,8 @@ public:
     QString         vehicleTypeString           () const;
     int             telemetryRRSSI              () const{ return _telemetryRRSSI; }
     int             telemetryLRSSI              () const{ return _telemetryLRSSI; }
+    float           wifiRSSI                    () const{ return _wifiRSSI; }
+    uint            wifiRSSITimeBootMs          () const{ return _wifiRSSITimeBootMs; }
     unsigned int    telemetryRXErrors           () const{ return _telemetryRXErrors; }
     unsigned int    telemetryFixed              () const{ return _telemetryFixed; }
     unsigned int    telemetryTXBuffer           () const{ return _telemetryTXBuffer; }
@@ -857,6 +861,8 @@ signals:
     void rcRSSIChanged                  (int rcRSSI);
     void telemetryRRSSIChanged          (int value);
     void telemetryLRSSIChanged          (int value);
+    void wifiRSSIChanged               (float value);
+    void wifiRSSITimeBootMsChanged     (uint value);
     void telemetryRXErrorsChanged       (unsigned int value);
     void telemetryFixedChanged          (unsigned int value);
     void telemetryTXBufferChanged       (unsigned int value);
@@ -981,6 +987,16 @@ private:
     void _missionManagerError           (int errorCode, const QString& errorMsg);
     void _geoFenceManagerError          (int errorCode, const QString& errorMsg);
     void _rallyPointManagerError        (int errorCode, const QString& errorMsg);
+#if defined(QGC_CUSTOM_BUILD)
+    void _handleQvioStatus              (const mavlink_message_t& message);
+#endif
+#if defined(QGC_CUSTOM_BUILD)
+    void _handleDistanceSensor          (const mavlink_message_t& message);
+#ifdef MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY
+    void _handleQvioDebugArray          (const mavlink_message_t& message);
+#endif
+    void _handleNamedValueFloat         (LinkInterface *link, const mavlink_message_t& message);
+#endif
     void _say                           (const QString& text);
     QString _vehicleIdSpeech            ();
     void _handleMavlinkLoggingData      (mavlink_message_t& message);
@@ -1041,6 +1057,8 @@ private:
     double          _defaultHoverSpeed = qQNaN();
     int             _telemetryRRSSI = 0;
     int             _telemetryLRSSI = 0;
+    float           _wifiRSSI = 0.f;
+    uint            _wifiRSSITimeBootMs = 0;
     uint32_t        _telemetryRXErrors = 0;
     uint32_t        _telemetryFixed = 0;
     uint32_t        _telemetryTXBuffer = 0;

@@ -19,6 +19,7 @@ import QGroundControl.ScreenTools
 
 Rectangle {
     id:     settingsView
+    anchors.fill: parent
     color:  qgcPal.window
     z:      QGroundControl.zOrderTopMost
 
@@ -50,7 +51,7 @@ Rectangle {
             rightPanel.source = "qrc:/qml/RemoteIDSettings.qml"
             globals.commingFromRIDIndicator = false
         } else {
-            rightPanel.source =  "/qml/GeneralSettings.qml"
+            rightPanel.source =  "qrc:/qml/GeneralSettings.qml"
         }
     }
 
@@ -140,4 +141,3 @@ Rectangle {
         anchors.bottom:         parent.bottom
     }
 }
-

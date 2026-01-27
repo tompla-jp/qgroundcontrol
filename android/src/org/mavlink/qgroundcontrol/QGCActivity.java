@@ -9,6 +9,7 @@ import android.os.PowerManager;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 import android.view.WindowManager;
+import android.view.View;
 import android.app.Activity;
 import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
@@ -38,14 +39,32 @@ public class QGCActivity extends QtActivity {
         return m_instance;
     }
 
+    private static void writeStartupLog(Context context, String message) {
+        QGCStartupLogger.write(context, message);
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        writeStartupLog(this, "QGCActivity onCreate start");
+        try {
+            super.onCreate(savedInstanceState);
+            writeStartupLog(this, "QGCActivity onCreate after super");
+        } catch (Throwable t) {
+            writeStartupLog(this, "QGCActivity onCreate super crash: " + t);
+            throw t;
+        }
 
-        nativeInit();
+        try {
+            final boolean nativeOk = nativeInit();
+            writeStartupLog(this, "QGCActivity nativeInit result=" + nativeOk);
+        } catch (final Throwable t) {
+            writeStartupLog(this, "QGCActivity nativeInit crash: " + t);
+            throw t;
+        }
         acquireWakeLock();
         keepScreenOn();
         setupMulticastLock();
+        enterImmersiveMode();
 
         QGCUsbSerialManager.initialize(this);
     }
@@ -61,6 +80,29 @@ public class QGCActivity extends QtActivity {
         }
 
         super.onDestroy();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            enterImmersiveMode();
+        }
+    }
+
+    /**
+     * Hides status/navigation bars for full-screen experience.
+     */
+    private void enterImmersiveMode() {
+        final View decor = getWindow().getDecorView();
+        decor.setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_FULLSCREEN
+        );
     }
 
     /**

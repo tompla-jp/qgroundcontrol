@@ -49,6 +49,17 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
+# QtLocation private headers are required for the map plugin. Skip if unavailable.
+set(QGC_HAS_QTLOCATION_PRIVATE FALSE)
+# Try to detect QtLocation private headers from the Qt installation prefix.
+get_filename_component(_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
+if(Qt6_VERSION)
+    set(_qt_location_private "${_qt_prefix}/include/QtLocation/${Qt6_VERSION}/QtLocation/private/qgeomaptype_p.h")
+    if(EXISTS "${_qt_location_private}")
+        set(QGC_HAS_QTLOCATION_PRIVATE TRUE)
+    endif()
+endif()
+
 add_subdirectory(ADSB)
 add_subdirectory(AnalyzeView)
 add_subdirectory(Android)
@@ -79,4 +90,8 @@ add_subdirectory(Vehicle)
 add_subdirectory(VideoManager)
 add_subdirectory(Viewer3D)
 
-add_subdirectory(QtLocationPlugin)
+if(QGC_HAS_QTLOCATION_PRIVATE)
+    add_subdirectory(QtLocationPlugin)
+else()
+    message(WARNING "QtLocation private headers not found; skipping QtLocationPlugin build (maps may be limited).")
+endif()

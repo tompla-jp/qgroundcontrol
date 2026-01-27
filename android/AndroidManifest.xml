@@ -31,10 +31,11 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
     <application
-        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:name="org.mavlink.qgroundcontrol.QGCApp"
         android:hardwareAccelerated="true"
         android:label="-- %%INSERT_APP_NAME%% --"
         android:requestLegacyExternalStorage="true"
+        android:extractNativeLibs="true"
         android:allowBackup="true"
         android:fullBackupOnly="false"
         android:icon="@drawable/icon"

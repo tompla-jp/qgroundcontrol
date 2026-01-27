@@ -18,12 +18,15 @@ import QGroundControl.ScreenTools
 
 Button {
     id:             control
-    padding:        ScreenTools.defaultFontPixelWidth * 0.75
+    padding:        ScreenTools.defaultFontPixelWidth * 0.75 * paddingScale
     hoverEnabled:   !ScreenTools.isMobile
     autoExclusive:  true
     icon.color:     textColor
 
     property color textColor: checked || pressed ? qgcPal.buttonHighlightText : qgcPal.buttonText
+    property real  iconPixelSize: ScreenTools.defaultFontPixelHeight
+    property real  textPointSize: ScreenTools.defaultFontPointSize
+    property real  paddingScale: 1.0
 
     QGCPalette {
         id:                 qgcPal
@@ -42,8 +45,8 @@ Button {
         QGCColoredImage {
             source: control.icon.source
             color:  control.icon.color
-            width:  ScreenTools.defaultFontPixelHeight
-            height: ScreenTools.defaultFontPixelHeight
+            width:  control.iconPixelSize
+            height: control.iconPixelSize
         }
 
         QGCLabel {
@@ -51,6 +54,7 @@ Button {
             Layout.fillWidth:       true
             text:                   control.text
             color:                  control.textColor
+            font.pointSize:         control.textPointSize
             horizontalAlignment:    QGCLabel.AlignLeft
         }
     }

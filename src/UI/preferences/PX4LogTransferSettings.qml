@@ -128,6 +128,8 @@ Rectangle {
                     Row {
                         spacing:    ScreenTools.defaultFontPixelWidth
                         anchors.horizontalCenter: parent.horizontalCenter
+                        property real settingsButtonHeightFactor: ScreenTools.isMobile ? 0.25 : 0.16
+                        property real settingsButtonTextPixelSize: ScreenTools.defaultFontPixelHeight * 0.45
                         QGCLabel {
                             width:              _labelWidth
                             text:               qsTr("Manual Start/Stop:")
@@ -491,6 +493,8 @@ Rectangle {
                     Row {
                         spacing:    ScreenTools.defaultFontPixelWidth
                         anchors.horizontalCenter: parent.horizontalCenter
+                        property real settingsButtonHeightFactor: ScreenTools.isMobile ? 0.25 : 0.16
+                        property real settingsButtonTextPixelSize: ScreenTools.defaultFontPixelHeight * 0.45
                         QGCButton {
                             text:      qsTr("Check All")
                             enabled:    !_mavlinkLogManager.uploading && !_mavlinkLogManager.logRunning

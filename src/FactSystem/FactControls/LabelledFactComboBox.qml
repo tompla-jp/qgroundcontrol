@@ -29,6 +29,7 @@ RowLayout {
     QGCLabel {
         id:                 label  
         Layout.fillWidth:   true
+        font.pointSize:     ScreenTools.defaultFontPointSize
     }
 
     FactComboBox {
@@ -39,4 +40,3 @@ RowLayout {
         onActivated: (index) => { parent.activated(index) }
     }
 }
-

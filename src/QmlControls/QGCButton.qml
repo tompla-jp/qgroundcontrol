@@ -22,7 +22,9 @@ Button {
     property bool   primary:        false                               ///< primary button for a group of buttons
     property bool   showBorder:     qgcPal.globalTheme === QGCPalette.Light
     property real   backRadius:     ScreenTools.buttonBorderRadius
-    property real   heightFactor:   0.5
+    property real   heightFactor:   ScreenTools.isMobile ? 0.5 : 0.32
+    property real   settingsButtonHeightFactor: NaN
+    property real   settingsButtonTextPixelSize: NaN
     property string iconSource:     ""
     property real   fontWeight:     Font.Normal // default for qml Text
     property real   pointSize:      ScreenTools.defaultFontPointSize
@@ -35,7 +37,54 @@ Button {
     property bool   _showHighlight:     enabled && (pressed | checked)
 
     property int _horizontalPadding:    ScreenTools.defaultFontPixelWidth * 2
-    property int _verticalPadding:      Math.round(ScreenTools.defaultFontPixelHeight * heightFactor)
+    property real _settingsButtonHeightFactor: {
+        if (!isNaN(settingsButtonHeightFactor)) {
+            return settingsButtonHeightFactor
+        }
+        var item = control.parent
+        while (item) {
+            if (item.settingsButtonHeightFactor !== undefined && !isNaN(item.settingsButtonHeightFactor)) {
+                return item.settingsButtonHeightFactor
+            }
+            item = item.parent
+        }
+        return NaN
+    }
+    property real _settingsButtonTextPixelSize: {
+        if (!isNaN(settingsButtonTextPixelSize)) {
+            return settingsButtonTextPixelSize
+        }
+        var item = control.parent
+        while (item) {
+            if (item.settingsButtonTextPixelSize !== undefined && !isNaN(item.settingsButtonTextPixelSize)) {
+                return item.settingsButtonTextPixelSize
+            }
+            item = item.parent
+        }
+        return NaN
+    }
+    property bool _useSettingsTextMetrics:        !isNaN(_settingsButtonTextPixelSize)
+    property real _effectiveSettingsTextPixelSize: {
+        if (!_useSettingsTextMetrics) {
+            return NaN
+        }
+        return Math.min(_settingsButtonTextPixelSize, ScreenTools.smallFontPixelHeight)
+    }
+    property real _effectiveHeightFactor: isNaN(_settingsButtonHeightFactor) ? heightFactor : _settingsButtonHeightFactor
+    property real _implicitHeightScale: {
+        if (isNaN(_settingsButtonHeightFactor)) {
+            return 1.0
+        }
+        var base = _useSettingsTextMetrics ? 0.5 : (ScreenTools.isMobile ? 0.5 : 0.32)
+        return _effectiveHeightFactor / base
+    }
+    property int _verticalPadding: {
+        var factor = _effectiveHeightFactor
+        if (_useSettingsTextMetrics) {
+            factor = Math.min(factor, ScreenTools.isMobile ? 0.4 : 0.28)
+        }
+        return Math.round(ScreenTools.defaultFontPixelHeight * factor)
+    }
 
     QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
 
@@ -43,7 +92,7 @@ Button {
         id:             backRect
         radius:         backRadius
         implicitWidth:  ScreenTools.implicitButtonWidth
-        implicitHeight: ScreenTools.implicitButtonHeight
+        implicitHeight: Math.round(ScreenTools.implicitButtonHeight * _implicitHeightScale)
         border.width:   showBorder ? 1 : 0
         border.color:   qgcPal.buttonBorder
         color:          primary ? qgcPal.primaryButton : qgcPal.button
@@ -74,12 +123,15 @@ Button {
             QGCLabel {
                 id:                     text
                 Layout.alignment:       Qt.AlignHCenter
-                text:                   control.text
-                font.pointSize:         control.pointSize
+                text:                   control.text === "" ? (control.primary ? qsTr("OK") : qsTr("Cancel")) : control.text
                 font.family:            control.font.family
                 font.weight:            fontWeight
+                // Keep text inside button bounds
+                font.pixelSize:         isNaN(control._effectiveSettingsTextPixelSize)
+                                        ? Math.min(ScreenTools.defaultFontPixelHeight * 1.2, Math.max(ScreenTools.defaultFontPixelHeight * 0.9, control.height * 0.45))
+                                        : control._effectiveSettingsTextPixelSize
                 color:                  _showHighlight ? qgcPal.buttonHighlightText : (primary ? qgcPal.primaryButtonText : qgcPal.buttonText)
-                visible:                control.text !== "" 
+                visible:                text !== ""
             }
     }
 }

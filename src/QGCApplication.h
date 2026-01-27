@@ -25,6 +25,9 @@ class QEvent;
 class QPostEventList;
 class QMetaMethod;
 class QMetaObject;
+#ifdef QGC_CUSTOM_BUILD
+class CustomQGCApplication;
+#endif
 
 #if defined(qApp)
 #undef qApp
@@ -94,6 +97,9 @@ public:
 
     /// Although public, these methods are internal and should only be called by UnitTest code
     QQmlApplicationEngine *qmlAppEngine() const { return _qmlAppEngine; }
+#ifdef QGC_CUSTOM_BUILD
+    CustomQGCApplication *customApplication() const { return _customApplication; }
+#endif
 
 signals:
     void languageChanged(const QLocale locale);
@@ -117,6 +123,13 @@ public slots:
     void showRebootAppMessage(const QString &message, const QString &title = QString());
 
     QGCImageProvider *qgcImageProvider();
+
+#ifdef QGC_CUSTOM_BUILD
+    Q_INVOKABLE void recordStart();
+    Q_INVOKABLE void recordStop();
+    Q_INVOKABLE void snapshot();
+    Q_INVOKABLE void swapCamera();
+#endif
 
 private slots:
     /// Called when the delay timer fires to show the missing parameters warning
@@ -159,6 +172,9 @@ private:
     bool _videoManagerInitialized = false;
 
     QList<QPair<QString /* title */, QString /* message */>> _delayedAppMessages;
+#ifdef QGC_CUSTOM_BUILD
+    CustomQGCApplication *_customApplication = nullptr;
+#endif
 
     class CompressedSignalList
     {

@@ -21,6 +21,10 @@ Item {
 
     property real offsetRadius: width / 2 - ScreenTools.defaultFontPixelHeight / 2
 
+    // 内側にラベルを少し寄せる（約3mm相当）ためのオフセット
+    property real labelInset: 10
+    property real labelRadius: control.offsetRadius - labelInset
+
     function translateCenterToAngleX(radius, angle) {
         return radius * Math.sin(angle * (Math.PI / 180))
     } 
@@ -32,68 +36,76 @@ Item {
     QGCLabel {
         anchors.centerIn:   parent
         text:               "N"
+        font.pixelSize:     20
+        font.bold:          true
 
         transform: Translate {
-            x: translateCenterToAngleX(control.offsetRadius, 0)
-            y: translateCenterToAngleY(control.offsetRadius, 0)
+            x: translateCenterToAngleX(control.labelRadius, 0)
+            y: translateCenterToAngleY(control.labelRadius, 0)
         }
     }
 
     QGCLabel {
         anchors.centerIn:   parent
         text:               "E"
+        font.pixelSize:     20
+        font.bold:          true
 
         transform: Translate {
-            x: translateCenterToAngleX(control.offsetRadius, 90)
-            y: translateCenterToAngleY(control.offsetRadius, 90)
+            x: translateCenterToAngleX(control.labelRadius, 90)
+            y: translateCenterToAngleY(control.labelRadius, 90)
         }
     }
 
     QGCLabel {
         anchors.centerIn:   parent
         text:               "S"
+        font.pixelSize:     20
+        font.bold:          true
 
         transform: Translate {
-            x: translateCenterToAngleX(control.offsetRadius, 180)
-            y: translateCenterToAngleY(control.offsetRadius, 180)
+            x: translateCenterToAngleX(control.labelRadius, 180)
+            y: translateCenterToAngleY(control.labelRadius, 180)
         }
     }
 
     QGCLabel {
         anchors.centerIn:   parent
         text:               "W"
+        font.pixelSize:     20
+        font.bold:          true
 
         transform: Translate {
-            x: translateCenterToAngleX(control.offsetRadius, 270)
-            y: translateCenterToAngleY(control.offsetRadius, 270)
+            x: translateCenterToAngleX(control.labelRadius, 270)
+            y: translateCenterToAngleY(control.labelRadius, 270)
         }
     }
 
     // Major tick marks
-    Repeater {
-        model: 4
-
-        Rectangle {
-            id:                 majorTick
-            x:                  size / 2
-            width:              1
-            height:             ScreenTools.defaultFontPixelHeight * 0.5
-            color:              qgcPal.text
-
-            transform: Rotation {
-                origin.x:   0
-                origin.y:   size / 2
-                angle:      45 + (90 * index)
-            }
-        }
-    }
-
-    // Minor tick marks
+    // Major tick marks (every 45 deg)
     Repeater {
         model: 8
 
         Rectangle {
             id:                 majorTick
+            x:                  size / 2
+            width:              1.2
+            height:             ScreenTools.defaultFontPixelHeight * 0.6
+            color:              qgcPal.text
+
+            transform: Rotation {
+                origin.x:   0
+                origin.y:   size / 2
+                angle:      (45 * index)
+            }
+        }
+    }
+
+    // Minor tick marks (every 22.5 deg)
+    Repeater {
+        model: 16
+
+        Rectangle {
             x:                  size / 2
             y:                  _margin
             width:              1
@@ -105,8 +117,8 @@ Item {
             transform: Rotation {
                 origin.x:   0
                 origin.y:   size / 2 - _margin
-                angle:      45 / 2 + (45 * index)
+                angle:      22.5 * index
             }
         }
-    }    
+    }
 }

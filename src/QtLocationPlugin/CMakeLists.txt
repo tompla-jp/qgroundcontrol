@@ -50,12 +50,13 @@ endif()
 
 target_link_libraries(QGCLocation
     PRIVATE
+        Qt6::LocationPrivate
         Qt6::Positioning
+        Qt6::Qml
         Qt6::Sql
     PUBLIC
         Qt6::Core
         Qt6::Location
-        Qt6::LocationPrivate
         Qt6::Network
 )
 

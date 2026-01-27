@@ -1045,6 +1045,7 @@ void GstVideoReceiver::_noteTeeFrame()
 void GstVideoReceiver::_noteVideoSinkFrame()
 {
     _lastVideoFrameTime = QDateTime::currentSecsSinceEpoch();
+    _setLastFrameTimeMs(QDateTime::currentMSecsSinceEpoch());
     if (!_decoding) {
         _decoding = true;
         qCDebug(GstVideoReceiverLog) << "Decoding started";

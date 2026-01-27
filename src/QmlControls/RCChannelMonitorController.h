@@ -36,7 +36,9 @@ signals:
 
 private slots:
     void _rcChannelsChanged(int channelCount, int pwmValues[QGCMAVLink::maxRcChannels]);
+    void _activeVehicleChanged(Vehicle *vehicle);
 
 private:
+    void _setVehicle(Vehicle *vehicle);
     int _chanCount = 0;
 };

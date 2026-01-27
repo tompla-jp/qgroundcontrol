@@ -21,8 +21,8 @@ Rectangle {
     height: size
     radius: width / 2
     color:  qgcPal.window
-    border.color:   qgcPal.text
-    border.width:   usedByMultipleVehicleList ? 1 : 0
+    border.color:   "#FFFFFF"
+    border.width:   1
     opacity:        vehicle && usedByMultipleVehicleList && !vehicle.armed ? 0.5 : 1
 
     property real size:                         _defaultSize
@@ -83,6 +83,7 @@ Rectangle {
         }
 
         CompassHeadingIndicator {
+            id:             headingIndicator
             compassSize:    size
             heading:        _heading
             simplified:     usedByMultipleVehicleList
@@ -148,8 +149,12 @@ Rectangle {
 
     QGCLabel {
         anchors.horizontalCenter:   parent.horizontalCenter
-        y:                          size * 0.74
+        anchors.top:                parent.bottom
+        anchors.topMargin:          ScreenTools.defaultFontPixelHeight * 0.3
         text:                       vehicle && !usedByMultipleVehicleList ? _heading.toFixed(0) + "°" : ""
         horizontalAlignment:        Text.AlignHCenter
+        color:                      qgcPal.text
+        font.pixelSize:             Math.max(18, _fontSize * 2)    // 表示文字を大きめに
+        font.bold:                  true
     }
 }

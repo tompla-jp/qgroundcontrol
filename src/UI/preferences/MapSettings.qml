@@ -249,6 +249,7 @@ Item {
             QGCPopupDialog {
                 title:      qsTr("Export Selected Tile Sets")
                 buttons:    Dialog.Ok | Dialog.Cancel
+                dialogButtonHeightFactor: ScreenTools.isMobile ? 0.32 : 0.28
 
                 onAccepted: {
                     close()
@@ -278,6 +279,7 @@ Item {
             QGCPopupDialog {
                 title:      qsTr("Import TileSets")
                 buttons:    Dialog.Ok | Dialog.Cancel
+                dialogButtonHeightFactor: ScreenTools.isMobile ? 0.32 : 0.28
 
                 onAccepted: {
                     close()

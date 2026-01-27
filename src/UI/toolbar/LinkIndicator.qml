@@ -46,6 +46,8 @@ Item {
 
     QGCComboBox {
         id:             linkCombo
+        anchors.left:   parent.left
+        anchors.verticalCenter: parent.verticalCenter
         sizeToContents: true
         alternateText:  _primaryLinkName
         onActivated:    (index) => { _activeVehicle.vehicleLinkManager.primaryLinkName = _rgLinkNames[index]; currentIndex = -1 }

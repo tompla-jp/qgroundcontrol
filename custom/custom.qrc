@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/qml">
+        <file alias="MainView.qml">qml/MainView.qml</file>
+        <file alias="HUD/Compass.qml">qml/HUD/Compass.qml</file>
+        <file alias="HUD/QVIOIndicator.qml">qml/HUD/QVIOIndicator.qml</file>
+        <file alias="HUD/ToFSensor.qml">qml/HUD/ToFSensor.qml</file>
+        <file alias="Video/VideoMain.qml">qml/Video/VideoMain.qml</file>
+        <file alias="Video/VideoPiP.qml">qml/Video/VideoPiP.qml</file>
+    </qresource>
+</RCC>

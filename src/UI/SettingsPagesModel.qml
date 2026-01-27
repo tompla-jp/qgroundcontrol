@@ -38,7 +38,7 @@ ListModel {
         name: qsTr("Video")
         url: "/qml/VideoSettings.qml"
         iconUrl: "qrc:/InstrumentValueIcons/camera.svg"
-        pageVisible: function() { return QGroundControl.settingsManager.videoSettings.visible }
+        pageVisible: function() { return QGroundControl.settingsManager && QGroundControl.settingsManager.videoSettings.visible }
     }
 
     ListElement {
@@ -123,4 +123,3 @@ ListModel {
         pageVisible: function() { return ScreenTools.isDebug }
     }
 }
-

@@ -33,11 +33,17 @@ Rectangle {
     readonly property real      _verticalMargin:    _defaultTextHeight / 2
     readonly property real      _buttonWidth:       _defaultTextWidth * 18
     readonly property string    _armedVehicleText:  qsTr("This operation cannot be performed while the vehicle is armed.")
+    readonly property real      _standardPointSize: Math.max(1, Math.round(ScreenTools.platformFontPointSize * ScreenTools.defaultUiScale))
+    readonly property real      _setupButtonScale:  Math.min(1.0, _standardPointSize / Math.max(1, ScreenTools.defaultFontPointSize))
+    readonly property real      _setupButtonTextPointSize: ScreenTools.defaultFontPointSize * _setupButtonScale
+    readonly property real      _setupButtonIconSize:      ScreenTools.defaultFontPixelHeight * _setupButtonScale
 
     property bool   _vehicleArmed:                  QGroundControl.multiVehicleManager.activeVehicle ? QGroundControl.multiVehicleManager.activeVehicle.armed : false
     property string _messagePanelText:              qsTr("missing message panel text")
     property bool   _fullParameterVehicleAvailable: QGroundControl.multiVehicleManager.parameterReadyVehicleAvailable && !QGroundControl.multiVehicleManager.activeVehicle.parameterManager.missingParameters
     property var    _corePlugin:                    QGroundControl.corePlugin
+    property real   settingsButtonHeightFactor:     (ScreenTools.isMobile ? 0.5 : 0.32) * _setupButtonScale
+    property real   settingsButtonTextPixelSize:    ScreenTools.defaultFontPixelHeight * 0.9 * _setupButtonScale
 
     function showSummaryPanel() {
         if (mainWindow.allowViewSwitch()) {
@@ -215,6 +221,9 @@ Rectangle {
                 icon.source:        "/qmlimages/VehicleSummaryIcon.png"
                 checked:            true
                 text:               qsTr("Summary")
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
                 Layout.fillWidth:   true
 
                 onClicked: showSummaryPanel()
@@ -223,6 +232,9 @@ Rectangle {
             ConfigButton {
                 visible:            QGroundControl.multiVehicleManager.activeVehicle ? QGroundControl.multiVehicleManager.activeVehicle.flowImageIndex > 0 : false
                 text:               qsTr("Optical Flow")
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
                 Layout.fillWidth:   true
                 onClicked:          showPanel(this, "OpticalFlowSensor.qml")
             }
@@ -233,6 +245,9 @@ Rectangle {
                 setupComplete:      _activeJoystick ? _activeJoystick.calibrated || _buttonsOnly : false
                 visible:            _fullParameterVehicleAvailable && joystickManager.joysticks.length !== 0
                 text:               _forcedToButtonsOnly ? qsTr("Buttons") : qsTr("Joystick")
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
                 Layout.fillWidth:   true
                 onClicked:          showPanel(this, "JoystickConfig.qml")
 
@@ -245,16 +260,20 @@ Rectangle {
                 id:     componentRepeater
                 model:  _fullParameterVehicleAvailable ? QGroundControl.multiVehicleManager.activeVehicle.autopilotPlugin.vehicleComponents : 0
 
-                ConfigButton {
-                    icon.source:      modelData.iconResource
-                    setupComplete:      modelData.setupComplete
-                    text:               modelData.name
-                    visible:            modelData.setupSource.toString() !== ""
-                    Layout.fillWidth:   true
-                    onClicked:          showVehicleComponentPanel(componentUrl)
+            ConfigButton {
+                icon.source:      modelData.iconResource
+                setupComplete:      modelData.setupComplete
+                text:               _componentName
+                visible:            _componentName !== "" && modelData.setupSource.toString() !== ""
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
+                Layout.fillWidth:   true
+                onClicked:          showVehicleComponentPanel(componentUrl)
 
-                    property var componentUrl: modelData
-                }
+                property var componentUrl: modelData
+                property string _componentName: modelData && modelData.name ? modelData.name : ""
+            }
             }
 
             ConfigButton {
@@ -263,6 +282,9 @@ Rectangle {
                                     !QGroundControl.multiVehicleManager.activeVehicle.usingHighLatencyLink &&
                                     _corePlugin.showAdvancedUI
                 text:               qsTr("Parameters")
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
                 Layout.fillWidth:   true
                 icon.source:        "/qmlimages/subMenuButtonImage.png"
                 onClicked:          showPanel(this, "SetupParameterEditor.qml")
@@ -273,6 +295,9 @@ Rectangle {
                 icon.source:      "/qmlimages/FirmwareUpgradeIcon.png"
                 visible:            !ScreenTools.isMobile && _corePlugin.options.showFirmwareUpgrade
                 text:               qsTr("Firmware")
+                paddingScale:       _setupButtonScale
+                textPointSize:      _setupButtonTextPointSize
+                iconPixelSize:      _setupButtonIconSize
                 Layout.fillWidth:   true
 
                 onClicked: showPanel(this, "FirmwareUpgrade.qml")

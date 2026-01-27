@@ -65,7 +65,11 @@ AppSettings::LanguageInfo_t AppSettings::_rgLanguageInfo[] = {
 DECLARE_SETTINGGROUP(App, "")
 {
     qmlRegisterUncreatableType<AppSettings>("QGroundControl.SettingsManager", 1, 0, "AppSettings", "Reference only");
-    QGCPalette::setGlobalTheme(indoorPalette()->rawValue().toBool() ? QGCPalette::Dark : QGCPalette::Light);
+    // デフォルトを屋内（ダーク）に強制してから保存値を適用
+    QGCPalette::setGlobalTheme(QGCPalette::Dark);
+    if (indoorPalette()->rawValue().toBool() != true) {
+        indoorPalette()->setRawValue(true);
+    }
 
     QSettings settings;
 

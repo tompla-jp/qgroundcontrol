@@ -13,6 +13,7 @@
 #include "QmlObjectListModel.h"
 
 #include <QtCore/QTimeZone>
+#include <cstring>
 
 QGC_LOGGING_CATEGORY(MAVLinkMessageLog, "qgc.analyzeview.mavlinkmessage")
 
@@ -26,6 +27,12 @@ QGCMAVLinkMessage::QGCMAVLinkMessage(const mavlink_message_t &message, QObject *
 
     const mavlink_message_info_t *const msgInfo = mavlink_get_message_info(&message);
     if (!msgInfo) {
+        _isCustomQvio = _isCustomQvioStatus(message);
+        if (_isCustomQvio) {
+            _initCustomQvioFields();
+            return;
+        }
+
         qCWarning(MAVLinkMessageLog) << QStringLiteral("QGCMAVLinkMessage NULL msgInfo msgid(%1)").arg(message.msgid);
         return;
     }
@@ -110,9 +117,10 @@ void QGCMAVLinkMessage::update(const mavlink_message_t &message)
     _count++;
     _message = message;
 
-    if (_fieldSelected) {
-        // Don't update field info unless selected to reduce perf hit of message processing
-        _updateFields();
+    if (_isCustomQvio) {
+        _updateCustomQvioFields(message);
+    } else if (_fieldSelected) {
+        _updateFields(); // Don't update field info unless selected to reduce perf hit
     }
     emit countChanged();
 }
@@ -335,4 +343,91 @@ void QGCMAVLinkMessage::_updateFields()
             break;
         }
     }
+}
+
+bool QGCMAVLinkMessage::_isCustomQvioStatus(const mavlink_message_t &message) const
+{
+#ifdef MAVLINK_MSG_ID_QVIO_STATUS
+    if (message.msgid == MAVLINK_MSG_ID_QVIO_STATUS) {
+        return true;
+    }
+#endif
+    return message.msgid == 42000;
+}
+
+void QGCMAVLinkMessage::_initCustomQvioFields()
+{
+    _name = QStringLiteral("QVIO_STATUS");
+    static const QList<QString> kFieldNames{
+        QStringLiteral("time_boot_ms"),
+        QStringLiteral("quality"),
+        QStringLiteral("feature_count"),
+        QStringLiteral("state"),
+        QStringLiteral("stale"),
+        QStringLiteral("error_code"),
+        QStringLiteral("error_text")
+    };
+    static const QList<QString> kFieldTypes{
+        QStringLiteral("uint32_t"),
+        QStringLiteral("float"),
+        QStringLiteral("int32_t"),
+        QStringLiteral("uint32_t"),
+        QStringLiteral("uint8_t"),
+        QStringLiteral("uint8_t"),
+        QStringLiteral("char[50]")
+    };
+
+    for (int i = 0; i < kFieldNames.size(); ++i) {
+        QGCMAVLinkMessageField *const field = new QGCMAVLinkMessageField(kFieldNames.at(i), kFieldTypes.at(i), this);
+        _fields->append(field);
+    }
+}
+
+void QGCMAVLinkMessage::_updateCustomQvioFields(const mavlink_message_t &message)
+{
+    if (_fields->count() < 7) {
+        return;
+    }
+
+    struct {
+        uint32_t time_boot_ms = 0;
+        float quality = 0.f;
+        int32_t feature_count = 0;
+        uint32_t error_code = 0;
+        uint8_t state = 0;
+        uint8_t stale = 0;
+        char error_text[50]{};
+    } status;
+
+    const uint8_t *const payload = reinterpret_cast<const uint8_t*>(message.payload64);
+    const int len = message.len;
+
+    auto copyIfAvailable = [payload, len](void *dst, int offset, int size) {
+        if (len >= offset + size) {
+            std::memcpy(dst, payload + offset, static_cast<size_t>(size));
+        }
+    };
+
+    int offset = 0;
+    copyIfAvailable(&status.time_boot_ms, offset, 4); offset += 4;
+    copyIfAvailable(&status.quality, offset, 4); offset += 4;
+    copyIfAvailable(&status.feature_count, offset, 4); offset += 4;
+    copyIfAvailable(&status.error_code, offset, 4); offset += 4;
+    copyIfAvailable(&status.state, offset, 1); offset += 1;
+    copyIfAvailable(&status.stale, offset, 1); offset += 1;
+    const int textAvail = qMax(0, len - offset);
+    const int copyLen = qMin(static_cast<int>(sizeof(status.error_text) - 1), textAvail);
+    if (copyLen > 0) {
+        std::memcpy(status.error_text, payload + offset, static_cast<size_t>(copyLen));
+        status.error_text[copyLen] = '\0';
+    }
+
+    Q_ASSERT(_fields->count() >= 7);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(0))->updateValue(QString::number(status.time_boot_ms), status.time_boot_ms);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(1))->updateValue(QString::number(status.quality, 'f', 2), status.quality);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(2))->updateValue(QString::number(status.feature_count), status.feature_count);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(3))->updateValue(QString::number(status.state), status.state);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(4))->updateValue(QString::number(status.stale), status.stale);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(5))->updateValue(QString::number(status.error_code), status.error_code);
+    qobject_cast<QGCMAVLinkMessageField*>(_fields->get(6))->updateValue(QString::fromLatin1(status.error_text), 0);
 }

@@ -28,6 +28,8 @@ Rectangle {
     property var    _activeVehicle:     QGroundControl.multiVehicleManager.activeVehicle
     property bool   _communicationLost: _activeVehicle ? _activeVehicle.vehicleLinkManager.communicationLost : false
     property color  _mainStatusBGColor: qgcPal.brandingPurple
+    property real   contentLeftMargin:  0
+    property real   _rightHudInset:     ScreenTools.defaultFontPixelWidth / 2 + wifiIndicator.width + rcIndicator.width + ScreenTools.defaultFontPixelWidth * 2
 
     function dropMainStatusIndicatorTool() {
         mainStatusIndicator.dropMainStatusIndicator();
@@ -58,6 +60,8 @@ Rectangle {
 
     RowLayout {
         id:                     viewButtonRow
+        anchors.left:           parent.left
+        anchors.leftMargin:     _root.contentLeftMargin
         anchors.bottomMargin:   1
         anchors.top:            parent.top
         anchors.bottom:         parent.bottom
@@ -82,12 +86,17 @@ Rectangle {
             onClicked:          _activeVehicle.closeVehicle()
             visible:            _activeVehicle && _communicationLost
         }
+
+        FlightModeIndicator {
+            Layout.preferredHeight: viewButtonRow.height
+            visible: _activeVehicle
+        }
     }
 
     QGCFlickable {
         id:                     toolsFlickable
         anchors.leftMargin:     ScreenTools.defaultFontPixelWidth * ScreenTools.largeFontPointRatio * 1.5
-        anchors.rightMargin:    ScreenTools.defaultFontPixelWidth / 2
+        anchors.rightMargin:    _rightHudInset
         anchors.left:           viewButtonRow.right
         anchors.bottomMargin:   1
         anchors.top:            parent.top
@@ -99,14 +108,102 @@ Rectangle {
         FlyViewToolBarIndicators { id: toolIndicators }
     }
 
+    Item {
+        id:                     rcIndicator
+        height:                 toolIndicators.height
+        width:                  visible ? implicitWidth : 0
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right:          brandImage.visible ? brandImage.left : parent.right
+        anchors.rightMargin:    brandImage.visible ? ScreenTools.defaultFontPixelWidth : ScreenTools.defaultFontPixelHeight * 0.66
+        visible:                _activeVehicle
+
+        property int    _percent:       0
+        property bool   _hasData:       false
+        property real   _hPadding:      ScreenTools.defaultFontPixelWidth / 2
+        property color  _activeColor:   qgcPal.text
+        property color  _inactiveColor: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.35)
+        property color  _currentColor:  _hasData ? _activeColor : _inactiveColor
+
+        RCChannelMonitorController { id: rcMonitor }
+
+        Timer {
+            id:         rcStaleTimer
+            interval:   2000
+            repeat:     false
+            onTriggered: rcIndicator._hasData = false
+        }
+
+        Connections {
+            target: rcMonitor
+            function onChannelRCValueChanged(channel, rcValue) {
+                if (channel !== 15) {
+                    return
+                }
+                var normalized = rcIndicator._normalizeRssi(rcValue)
+                if (normalized < 0) {
+                    rcIndicator._hasData = false
+                    return
+                }
+                rcIndicator._percent = normalized
+                rcIndicator._hasData = true
+                rcStaleTimer.restart()
+            }
+        }
+
+        Row {
+            id:                 rcRow
+            anchors.centerIn:   parent
+            spacing:            ScreenTools.defaultFontPixelWidth * 0.5
+
+            QGCLabel {
+                text:               qsTr("RC")
+                color:              rcIndicator._currentColor
+                font.pointSize:     ScreenTools.defaultFontPointSize * 1.2
+                renderType:         Text.NativeRendering
+            }
+
+            QGCLabel {
+                text:               rcIndicator._hasData ? (rcIndicator._percent + "%") : "--%"
+                color:              rcIndicator._currentColor
+                font.pointSize:     ScreenTools.defaultFontPointSize * 1.2
+                renderType:         Text.NativeRendering
+            }
+        }
+
+        implicitWidth: rcRow.implicitWidth + _hPadding * 2
+
+        function _normalizeRssi(rawValue) {
+            var value = Number(rawValue)
+            if (!isFinite(value) || value <= 0) {
+                return -1
+            }
+            var percent = (value - 1000) / 10
+            if (percent < 0) {
+                percent = 0
+            } else if (percent > 100) {
+                percent = 100
+            }
+            return Math.round(percent)
+        }
+    }
+
+    WifiRSSIIndicator {
+        id:                     wifiIndicator
+        height:                 toolIndicators.height
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right:          rcIndicator.left
+        anchors.rightMargin:    ScreenTools.defaultFontPixelWidth
+    }
+
     //-------------------------------------------------------------------------
     //-- Branding Logo
     Image {
+        id:                     brandImage
         anchors.right:          parent.right
         anchors.top:            parent.top
         anchors.bottom:         parent.bottom
         anchors.margins:        ScreenTools.defaultFontPixelHeight * 0.66
-        visible:                _activeVehicle && !_communicationLost && x > (toolsFlickable.x + toolsFlickable.contentWidth + ScreenTools.defaultFontPixelWidth)
+        visible:                _activeVehicle && !_communicationLost && x > (toolsFlickable.x + toolsFlickable.contentWidth + ScreenTools.defaultFontPixelWidth + wifiIndicator.width + ScreenTools.defaultFontPixelWidth)
         fillMode:               Image.PreserveAspectFit
         source:                 _outdoorPalette ? _brandImageOutdoor : _brandImageIndoor
         mipmap:                 true

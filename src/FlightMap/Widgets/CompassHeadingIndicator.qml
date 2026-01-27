@@ -18,7 +18,7 @@ import QGroundControl.Palette
 Canvas {
     id:                 control
     anchors.centerIn:   parent
-    width:              compassSize * 1/3
+    width:              Math.max(compassSize * 1/6, ScreenTools.defaultFontPixelHeight * 1.25)
     height:             width
 
     property real compassSize

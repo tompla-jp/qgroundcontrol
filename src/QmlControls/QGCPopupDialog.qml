@@ -55,6 +55,7 @@ Popup {
     property var    dialogProperties
     property bool   destroyOnClose:         true
     property bool   preventClose:           false
+    property real   dialogButtonHeightFactor: NaN
     
     readonly property real headerMinWidth: titleLable.implicitWidth + rejectButton.width + acceptButton.width + titleRowLayout.spacing * 2
 
@@ -227,6 +228,8 @@ Popup {
             QGCButton {
                 id:                     rejectButton
                 onClicked:              _reject()
+                heightFactor:           ScreenTools.isMobile ? 0.5 : 0.3
+                settingsButtonHeightFactor: dialogButtonHeightFactor
                 Layout.minimumWidth:    height * 1.5
             }
 
@@ -234,6 +237,8 @@ Popup {
                 id:                     acceptButton
                 primary:                true
                 onClicked:              _accept()
+                heightFactor:           ScreenTools.isMobile ? 0.5 : 0.3
+                settingsButtonHeightFactor: dialogButtonHeightFactor
                 Layout.minimumWidth:    height * 1.5
             }
         }

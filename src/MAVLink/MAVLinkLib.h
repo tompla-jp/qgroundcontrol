@@ -67,7 +67,8 @@ typedef enum : uint8_t {
 #   pragma warning(push, 0)
 #endif
 
-#include <mavlink.h>
+// Prefer the generated custom dialect (includes common/development + QVIO_STATUS)
+#include "custom/mavlink.h"
 
 #ifdef __GNUC__
 #	pragma GCC diagnostic pop

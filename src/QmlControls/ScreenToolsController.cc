@@ -17,6 +17,8 @@
 #include "SettingsManager.h"
 #include "AppSettings.h"
 
+#include <QtCore/QLocale>
+#include <QtCore/QStringList>
 #include <QtGui/QCursor>
 #include <QtGui/QFontDatabase>
 #include <QtGui/QFontMetrics>
@@ -79,8 +81,27 @@ QString ScreenToolsController::normalFontFamily()
 {
     //-- See App.SettinsGroup.json for index
     const int langID = SettingsManager::instance()->appSettings()->qLocaleLanguage()->rawValue().toInt();
-    if (langID == QLocale::Korean) {
+    QLocale::Language effectiveLanguage = static_cast<QLocale::Language>(langID);
+    if (effectiveLanguage == QLocale::AnyLanguage) {
+        effectiveLanguage = QLocale::system().language();
+    }
+    if (effectiveLanguage == QLocale::Korean) {
         return QStringLiteral("NanumGothic");
+    }
+    if (effectiveLanguage == QLocale::Japanese) {
+        const QStringList families = QFontDatabase::families();
+        const QStringList candidates{
+            QStringLiteral("Noto Sans JP"),
+            QStringLiteral("Noto Sans CJK JP"),
+            QStringLiteral("NotoSansCJKjp"),
+            QStringLiteral("Source Han Sans JP")
+        };
+        for (const QString &candidate : candidates) {
+            if (families.contains(candidate, Qt::CaseInsensitive)) {
+                return candidate;
+            }
+        }
+        return QFontDatabase::systemFont(QFontDatabase::GeneralFont).family();
     }
 
     return QStringLiteral("Open Sans");

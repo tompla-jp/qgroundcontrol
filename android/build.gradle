@@ -30,8 +30,16 @@ dependencies {
     implementation 'com.github.mik3y:usb-serial-for-android:3.8.1'
 }
 
+// 64-bit のみをビルド・パッケージ対象にする
+def qtTargetAbiList = "arm64-v8a"
+
 def getTimestampStr() { return new Date().format('yyyyMMddHHmmss') }
 def timestampInt = (int)(new Date().getTime() / 1000 / 1)
+def signingKeystorePath = project.findProperty("androidKeystorePath")
+def signingKeystorePassword = project.findProperty("androidKeystorePassword")
+def signingKeyAlias = project.findProperty("androidKeyAlias")
+def signingKeyPassword = project.findProperty("androidKeyPassword")
+def hasReleaseSigning = signingKeystorePath && signingKeystorePassword && signingKeyAlias && signingKeyPassword
 
 android {
     /*******************************************************
@@ -88,6 +96,25 @@ android {
         abortOnError = false
     }
 
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(signingKeystorePath)
+                storePassword signingKeystorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
     // Do not compress Qt binary resources file
     aaptOptions {
         noCompress 'rcc'
@@ -114,4 +141,17 @@ android {
     println "androidNdkVersion: ${ndkVersion}"
     println "project.name: ${project.name}"
     println "qtAndroidDir: ${qtAndroidDir}"
+}
+
+afterEvaluate {
+    tasks.matching { it.name == "assembleRelease" }.configureEach {
+        doLast {
+            def outDir = file("${buildDir}/outputs/apk/release")
+            def signedApk = new File(outDir, "${project.name}-release.apk")
+            def unsignedApk = new File(outDir, "${project.name}-release-unsigned.apk")
+            if (signedApk.exists() && !unsignedApk.exists()) {
+                unsignedApk.bytes = signedApk.bytes
+            }
+        }
+    }
 }

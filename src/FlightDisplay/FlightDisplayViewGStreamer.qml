@@ -20,4 +20,6 @@ import org.freedesktop.gstreamer.Qt6GLVideoItem
 
 GstGLQt6VideoItem {
     id: videoBackground
+    // Receiver is provided by custom VideoHandler to keep main/sub pipelines separate
+    property var receiver: null
 }
