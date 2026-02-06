@@ -2023,6 +2023,21 @@ void Vehicle::_sendQGCTimeToVehicle()
 
     mavlink_message_t       msg;
     mavlink_system_time_t   cmd;
+    mavlink_timesync_t      timeSync{};
+
+    // TIMESYNC request:
+    // tc1=0 (request), ts1=QGC time in nanoseconds.
+    timeSync.tc1 = 0;
+    timeSync.ts1 = QDateTime::currentDateTimeUtc().toMSecsSinceEpoch() * 1000000LL;
+    timeSync.target_system = static_cast<uint8_t>(_id);
+    timeSync.target_component = static_cast<uint8_t>(_defaultComponentId > 0 ? _defaultComponentId : 0);
+
+    mavlink_msg_timesync_encode_chan(MAVLinkProtocol::instance()->getSystemId(),
+                                     MAVLinkProtocol::getComponentId(),
+                                     sharedLink->mavlinkChannel(),
+                                     &msg,
+                                     &timeSync);
+    sendMessageOnLinkThreadSafe(sharedLink.get(), msg);
 
     // Timestamp of the master clock in microseconds since UNIX epoch.
     cmd.time_unix_usec = QDateTime::currentDateTime().currentMSecsSinceEpoch()*1000;
