@@ -36,17 +36,42 @@ Rectangle {
     property var    _activeVehicle:             globals.activeVehicle
     property var    _cameraManager:             _activeVehicle.cameraManager
     property var    _camera:                    _cameraManager.currentCameraInstance
-    property bool   _cameraInPhotoMode:         _camera.cameraMode === MavlinkCameraControl.CAM_MODE_PHOTO
+    property bool   _forcePhotoMode:            true
+    property bool   _cameraInPhotoMode:         _forcePhotoMode ? true : (_camera.cameraMode === MavlinkCameraControl.CAM_MODE_PHOTO)
     property bool   _cameraInVideoMode:         !_cameraInPhotoMode
     property bool   _videoCaptureIdle:          _camera.videoCaptureStatus === MavlinkCameraControl.VIDEO_CAPTURE_STATUS_STOPPED
     property bool   _photoCaptureSingleIdle:    _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IDLE
     property bool   _photoCaptureIntervalIdle:  _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IDLE
     property bool   _photoCaptureIdle:          _photoCaptureSingleIdle || _photoCaptureIntervalIdle
+    property bool   _showPhotoSuccess:          false
+    property int    _lastPhotoCaptureStatus:    MavlinkCameraControl.PHOTO_CAPTURE_IDLE
 
     property real   _rawWidth:                  mainLayout.width + (_margins * 2)
     property real   _rawHeight:                 mainLayout.height + (_margins * 2)
 
     QGCPalette { id: qgcPal; colorGroupEnabled: enabled }
+
+    Timer {
+        id:         _photoSuccessTimer
+        interval:   1500
+        repeat:     false
+        onTriggered: _showPhotoSuccess = false
+    }
+
+    Connections {
+        target: _camera
+        function onPhotoCaptureStatusChanged() {
+            var wasCapturing = _lastPhotoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IN_PROGRESS ||
+                               _lastPhotoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IN_PROGRESS
+            var nowIdle = _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IDLE ||
+                          _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IDLE
+            if (wasCapturing && nowIdle) {
+                _showPhotoSuccess = true
+                _photoSuccessTimer.restart()
+            }
+            _lastPhotoCaptureStatus = _camera.photoCaptureStatus
+        }
+    }
 
     DeadMouseArea { anchors.fill: parent }
 
@@ -107,7 +132,7 @@ Rectangle {
                         height:             width / 2
                         color:              qgcPal.windowShadeLight
                         radius:             height * 0.5
-                        visible:            true
+                        visible:            !_forcePhotoMode
 
                         //-- Video Mode
                         Rectangle {
@@ -166,9 +191,20 @@ Rectangle {
                         }
                     }
 
-                    // Take Photo, Start/Stop Video button
+                    QGCColoredImage {
+                        Layout.alignment:       Qt.AlignHCenter
+                        Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.5
+                        Layout.preferredWidth:  Layout.preferredHeight
+                        source:                 "/qmlimages/camera_photo.svg"
+                        fillMode:               Image.PreserveAspectFit
+                        sourceSize.height:      Layout.preferredHeight
+                        color:                  qgcPal.text
+                    }
+
+                    // Take Photo button
                     Rectangle {
                         Layout.alignment:   Qt.AlignHCenter
+                        Layout.topMargin:   _margins
                         color:              Qt.rgba(0,0,0,0)
                         width:              ScreenTools.defaultFontPixelWidth * 6
                         height:             width
@@ -197,47 +233,13 @@ Rectangle {
                             onClicked:      toggleShooting()
 
                             function toggleShooting() {
-                                if (_cameraInPhotoMode) {
-                                    if (_camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IN_PROGRESS) {
-                                        _camera.stopTakePhoto()
-                                    } else if (_camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IDLE || _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IDLE) {
-                                        _camera.takePhoto()
-                                    }
-                                } else {
-                                    _camera.toggleVideoRecording()
+                                _camera.setCameraModePhoto()
+                                if (_camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IN_PROGRESS) {
+                                    _camera.stopTakePhoto()
+                                } else if (_camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IDLE || _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IDLE) {
+                                    _camera.takePhoto()
                                 }
                             }
-                        }
-                    }
-
-                    // Record time / Capture count
-                    Rectangle {
-                        Layout.alignment:       Qt.AlignHCenter
-                        color:                  !_videoCaptureIdle && !_photoCaptureIdle ? "transparent" : qgcPal.colorRed
-                        Layout.preferredWidth:  (_cameraInVideoMode ? videoRecordTime.width : photoCaptureCount.width) + (_smallMargins * 2)
-                        Layout.preferredHeight: (_cameraInVideoMode ? videoRecordTime.height : photoCaptureCount.height)
-                        radius:                 _margins / 2
-
-                        // Video record time
-                        QGCLabel {
-                            id:                 videoRecordTime
-                            anchors.leftMargin: _smallMargins
-                            anchors.left:       parent.left
-                            anchors.top:        parent.top
-                            text:               _videoCaptureIdle ? "00:00:00" : _camera.recordTimeStr
-                            font.pointSize:     ScreenTools.largeFontPointSize
-                            visible:            _cameraInVideoMode
-                        }
-
-                        // Photo capture count
-                        QGCLabel {
-                            id:                 photoCaptureCount
-                            anchors.leftMargin: _smallMargins
-                            anchors.left:       parent.left
-                            anchors.top:        parent.top
-                            text:               _activeVehicle ? ('00000' + _activeVehicle.cameraTriggerPoints.count).slice(-5) : "00000"
-                            font.pointSize:     ScreenTools.largeFontPointSize
-                            visible:            _cameraInPhotoMode
                         }
                     }
 
@@ -305,19 +307,17 @@ Rectangle {
                     }
                 }
 
-                QGCColoredImage {
+                Item {
                     Layout.alignment:       Qt.AlignHCenter
-                    source:                 "/res/gear-black.svg"
-                    mipmap:                 true
                     Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.5
-                    Layout.preferredWidth:  Layout.preferredHeight
-                    sourceSize.height:      Layout.preferredHeight
-                    color:                  qgcPal.text
-                    fillMode:               Image.PreserveAspectFit
+                    Layout.preferredWidth:  ScreenTools.defaultFontPixelWidth * 7
 
-                    QGCMouseArea {
-                        fillItem:   parent
-                        onClicked:  settingsDialogComponent.createObject(mainWindow).open()
+                    QGCLabel {
+                        anchors.centerIn:   parent
+                        text:               qsTr("撮影成功")
+                        color:              qgcPal.colorGreen
+                        font.pointSize:     ScreenTools.defaultFontPointSize
+                        visible:            _showPhotoSuccess
                     }
                 }
             }

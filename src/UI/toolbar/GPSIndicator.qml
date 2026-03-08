@@ -36,7 +36,7 @@ Item {
         Row {
             anchors.top:    parent.top
             anchors.bottom: parent.bottom
-            spacing:        -ScreenTools.defaultFontPixelWidth / 2
+            spacing:        0
 
             QGCLabel {
                 id:                     gpsLabel
@@ -45,18 +45,6 @@ Item {
                 color:                  qgcPal.buttonText
                 anchors.verticalCenter: parent.verticalCenter
                 visible:                _rtkConnected
-            }
-
-            QGCColoredImage {
-                id:                 gpsIcon
-                width:              height
-                anchors.top:        parent.top
-                anchors.bottom:     parent.bottom
-                source:             "/qmlimages/Gps.svg"
-                fillMode:           Image.PreserveAspectFit
-                sourceSize.height:  height
-                opacity:            (_activeVehicle && _activeVehicle.gps.count.value >= 0) ? 1 : 0.5
-                color:              qgcPal.buttonText
             }
         }
 

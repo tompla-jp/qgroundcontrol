@@ -188,6 +188,13 @@ Vehicle::Vehicle(LinkInterface*             link,
     _sendMultipleTimer.start(_sendMessageMultipleIntraMessageDelay);
     connect(&_sendMultipleTimer, &QTimer::timeout, this, &Vehicle::_sendMessageMultipleNext);
 
+    _qgcTimeSyncTimer.setSingleShot(false);
+    _qgcTimeSyncTimer.setInterval(_qgcTimeSyncIntervalMSecs);
+    connect(&_qgcTimeSyncTimer, &QTimer::timeout, this, &Vehicle::_sendQGCTimeToVehicle);
+    connect(_vehicleLinkManager, &VehicleLinkManager::allLinksRemoved, this, [this](Vehicle *) {
+        _qgcTimeSyncTimer.stop();
+    });
+
     connect(&_orbitTelemetryTimer, &QTimer::timeout, this, &Vehicle::_orbitTelemetryTimeout);
 
     // Start csv logger
@@ -2000,6 +2007,10 @@ void Vehicle::_parametersReady(bool parametersReady)
     _sendQGCTimeToVehicle();
     // Send time twice, more likely to get to the vehicle on a noisy link
     _sendQGCTimeToVehicle();
+    if (!_qgcTimeSyncTimer.isActive()) {
+        _qgcTimeSyncTimer.start();
+    }
+
     if (parametersReady) {
         disconnect(_parameterManager, &ParameterManager::parametersReadyChanged, this, &Vehicle::_parametersReady);
         _setupAutoDisarmSignalling();

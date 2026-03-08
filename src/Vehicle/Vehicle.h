@@ -1111,8 +1111,10 @@ private:
 
     static const int _sendMessageMultipleRetries = 5;
     static const int _sendMessageMultipleIntraMessageDelay = 500;
+    static const int _qgcTimeSyncIntervalMSecs = 1000;
 
     QTimer  _sendMultipleTimer;
+    QTimer  _qgcTimeSyncTimer;
     int     _nextSendMessageMultipleIndex = 0;
 
     QElapsedTimer                   _flightTimer;

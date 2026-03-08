@@ -35,7 +35,7 @@ Item {
 
     QGCLabel {
         anchors.centerIn:   parent
-        text:               "N"
+        text:               "F"
         font.pixelSize:     20
         font.bold:          true
 
@@ -47,7 +47,7 @@ Item {
 
     QGCLabel {
         anchors.centerIn:   parent
-        text:               "E"
+        text:               "R"
         font.pixelSize:     20
         font.bold:          true
 
@@ -59,7 +59,7 @@ Item {
 
     QGCLabel {
         anchors.centerIn:   parent
-        text:               "S"
+        text:               "B"
         font.pixelSize:     20
         font.bold:          true
 
@@ -71,7 +71,7 @@ Item {
 
     QGCLabel {
         anchors.centerIn:   parent
-        text:               "W"
+        text:               "L"
         font.pixelSize:     20
         font.bold:          true
 
