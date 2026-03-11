@@ -15,6 +15,16 @@ repositories {
     maven { url = 'https://jitpack.io' }
 }
 
+def loadPropertiesFile = { File propsFile ->
+    def props = new Properties()
+    if (propsFile.exists()) {
+        propsFile.withInputStream { stream ->
+            props.load(stream)
+        }
+    }
+    return props
+}
+
 if (project.plugins.findPlugin("qtGradlePluginType") != null) {
     apply plugin: qtGradlePluginType
 } else {
@@ -35,10 +45,40 @@ def qtTargetAbiList = "arm64-v8a"
 
 def getTimestampStr() { return new Date().format('yyyyMMddHHmmss') }
 def timestampInt = (int)(new Date().getTime() / 1000 / 1)
-def signingKeystorePath = project.findProperty("androidKeystorePath")
-def signingKeystorePassword = project.findProperty("androidKeystorePassword")
-def signingKeyAlias = project.findProperty("androidKeyAlias")
-def signingKeyPassword = project.findProperty("androidKeyPassword")
+
+def localSigningProperties = new Properties()
+[
+    file("keystore.properties"),
+    file("gradle.properties.local"),
+    file("../keystore.properties"),
+].each { propsFile ->
+    localSigningProperties.putAll(loadPropertiesFile(propsFile))
+}
+
+def userGradleProperties = loadPropertiesFile(new File(System.getProperty("user.home"), ".gradle/gradle.properties"))
+def readSigningProperty = { String key ->
+    def propertyValue = project.findProperty(key)
+    if (propertyValue != null && propertyValue.toString().trim()) {
+        return propertyValue.toString().trim()
+    }
+
+    def localValue = localSigningProperties.getProperty(key)
+    if (localValue != null && localValue.trim()) {
+        return localValue.trim()
+    }
+
+    def userValue = userGradleProperties.getProperty(key)
+    if (userValue != null && userValue.trim()) {
+        return userValue.trim()
+    }
+
+    return null
+}
+
+def signingKeystorePath = readSigningProperty("androidKeystorePath")
+def signingKeystorePassword = readSigningProperty("androidKeystorePassword")
+def signingKeyAlias = readSigningProperty("androidKeyAlias")
+def signingKeyPassword = readSigningProperty("androidKeyPassword")
 def hasReleaseSigning = signingKeystorePath && signingKeystorePassword && signingKeyAlias && signingKeyPassword
 
 android {
