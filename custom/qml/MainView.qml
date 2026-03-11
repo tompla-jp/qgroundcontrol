@@ -350,6 +350,17 @@ ApplicationWindow {
             color: qgcPal.window
 
             property bool _videoSurfacesBound: false
+            readonly property real _hudEdgeInset: ScreenTools.defaultFontPixelHeight * 1.5
+            readonly property real _compassWidgetSize: (ScreenTools.defaultFontPixelHeight * 5 + 80) * 0.7
+            readonly property real _attitudeWidgetSize: _compassWidgetSize * 0.95
+            readonly property real _pipAspectRatio: 4 / 3
+            readonly property real _pipInfoHeight: ScreenTools.defaultFontPixelHeight * 2.3
+            readonly property real _pipMaxHeight: parent.height * 0.36
+            readonly property real _pipWidth: Math.min(parent.width * 0.25, (_pipMaxHeight - _pipInfoHeight) * _pipAspectRatio)
+            readonly property real _pipFrameHeight: _pipWidth / _pipAspectRatio
+            readonly property real _pipHeight: _pipFrameHeight + _pipInfoHeight
+            readonly property real _pipLeftShift: Screen.pixelDensity * 5
+            readonly property real _pipDownShift: Screen.pixelDensity * 5
             function _tryBindVideoSurfaces() {
                 if (_videoSurfacesBound || !_hasVideoHandler || !mainVideo || !pipVideo) {
                     return
@@ -425,22 +436,32 @@ ApplicationWindow {
                         spacing: ScreenTools.defaultFontPixelWidth * 3
                         anchors.left: parent.left
                         anchors.top: parent.top
-                        anchors.margins: ScreenTools.defaultFontPixelHeight * 1.5
-                        anchors.leftMargin: ScreenTools.defaultFontPixelHeight * 1.5
+                        anchors.margins: _hudEdgeInset
+                        anchors.leftMargin: _hudEdgeInset
                         anchors.topMargin: ScreenTools.defaultFontPixelHeight * 1.2
-
-                        property real compassSize: (ScreenTools.defaultFontPixelHeight * 5 + 80) * 0.7
 
                         IntegratedCompassAttitude {
                             id: compass
                             vehicle: mainWindow.activeVehicle
-                            width: parent.compassSize
-                            height: parent.compassSize
+                            width: _compassWidgetSize
+                            height: _compassWidgetSize
                             compassBorder: 1
                             compassRadius: width / 2 - 6
                             attitudeSize: ScreenTools.defaultFontPixelWidth * 0.8
                             attitudeSpacing: attitudeSize * 0.6
                         }
+                    }
+
+                    ReversedAttitudeWidget {
+                        id: attitudeIndicator
+                        anchors.left: parent.left
+                        anchors.bottom: parent.bottom
+                        anchors.leftMargin: _hudEdgeInset
+                        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 1.4
+                        size: _attitudeWidgetSize
+                        vehicle: mainWindow.activeVehicle
+                        showHeading: false
+                        visible: !!mainWindow.activeVehicle
                     }
 
                     // Default photo/video control widget (top-right)
@@ -449,7 +470,7 @@ ApplicationWindow {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: ScreenTools.defaultFontPixelHeight * 1.5
-                        scale: 1.08
+                        scale: 0.9
                         transformOrigin: Item.TopRight
                         visible: globals.activeVehicle && globals.activeVehicle.cameraManager
                     }
@@ -470,10 +491,11 @@ ApplicationWindow {
                     id: pipVideo
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.margins: ScreenTools.defaultFontPixelHeight * 2
-                    anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 6
-                    width: parent.width * 0.25
-                    height: parent.height * 0.25
+                    anchors.margins: ScreenTools.defaultFontPixelHeight * 1.1
+                    anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 1.8 + _pipLeftShift
+                    anchors.bottomMargin: Math.max(0, ScreenTools.defaultFontPixelHeight * 1.1 - _pipDownShift)
+                    width: _pipWidth
+                    height: _pipHeight
                     url: _hasVideoHandler ? (_displaySwapped ? videoHandler.mainUrl : videoHandler.subUrl) : ""
                     receiver: _hasVideoHandler ? (_displaySwapped ? videoHandler.mainReceiver : videoHandler.subReceiver) : null
                     label: _displaySwapped ? qsTr("Main") : qsTr("PiP")

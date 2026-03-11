@@ -21,9 +21,21 @@ Item {
 
     signal swapRequested()
 
+    readonly property real _footerSpacing: ScreenTools.defaultFontPixelHeight * 0.3
+    readonly property real _footerHeight: footerRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.6
+    readonly property real _frameHeight: Math.max(0, height - _footerHeight - _footerSpacing)
+
+    Item {
+        id: videoFrame
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root._frameHeight
+    }
+
     // 映像の背面に黒背景を敷く（メイン上・PiP映像下）
     Rectangle {
-        anchors.fill: parent
+        anchors.fill: videoFrame
         color: "#000000"
         radius: 6
         opacity: 0.9
@@ -33,16 +45,16 @@ Item {
     FlightDisplayViewGStreamer {
         id: videoSurface
         objectName: "pipVideoSurface"
-        anchors.fill: parent
+        anchors.fill: videoFrame
         z: 0
         receiver: root.receiver
     }
 
     // 映像が未受信時の待機メッセージ（PiPは中央寄せしすぎない程度）
     Column {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -parent.height * 0.18
+        anchors.horizontalCenter: videoFrame.horizontalCenter
+        anchors.verticalCenter: videoFrame.verticalCenter
+        anchors.verticalCenterOffset: -videoFrame.height * 0.18
         visible: !_streaming
         spacing: 4
 
@@ -85,7 +97,7 @@ Item {
 
     // 枠線のみ（映像を覆わない）
     Rectangle {
-        anchors.fill: parent
+        anchors.fill: videoFrame
         color: "transparent"
         border.color: "#fff5cc"
         border.width: 1
@@ -93,25 +105,8 @@ Item {
         z: 2
     }
 
-    Rectangle {
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.margins: 4
-        color: "#000000"
-        opacity: 0.6
-        radius: 4
-
-        Row {
-            anchors.fill: parent
-            anchors.margins: 4
-            spacing: 4
-            QGCLabel { text: label.length ? label : qsTr("PiP"); color: "#ffffff" }
-            QGCLabel { text: url; color: "#b0bec5" }
-        }
-    }
-
     MouseArea {
-        anchors.fill: parent
+        anchors.fill: videoFrame
         onClicked: root.swapRequested()
     }
 
@@ -119,9 +114,10 @@ Item {
     QGCButton {
         id: settingsButton
         text: qsTr("⚙")
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 6
+        anchors.left: videoFrame.left
+        anchors.bottom: videoFrame.top
+        anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.4
+        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.35
         padding: 4
         scale: 0.6
         z: 4
@@ -135,9 +131,9 @@ Item {
         color: "#000000"
         opacity: 0.85
         radius: 6
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 6
+        anchors.right: videoFrame.left
+        anchors.verticalCenter: videoFrame.verticalCenter
+        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.6
         width: 260
         z: 4
         // 内容が収まるようポップアップ高さを明示
@@ -189,6 +185,32 @@ Item {
                     onClicked: root.showUrlInput = false
                 }
             }
+        }
+    }
+
+    RowLayout {
+        id: footerRow
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: videoFrame.bottom
+        anchors.topMargin: root._footerSpacing
+        spacing: ScreenTools.defaultFontPixelWidth * 0.6
+        z: 3
+
+        QGCLabel {
+            text: label.length ? label : qsTr("PiP")
+            color: "#ffffff"
+            Layout.alignment: Qt.AlignVCenter
+        }
+
+        QGCLabel {
+            text: url
+            color: "#b0bec5"
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
+            elide: Text.ElideMiddle
+            maximumLineCount: 1
+            wrapMode: Text.NoWrap
         }
     }
 
