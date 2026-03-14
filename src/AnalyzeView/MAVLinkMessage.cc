@@ -119,8 +119,10 @@ void QGCMAVLinkMessage::update(const mavlink_message_t &message)
 
     if (_isCustomQvio) {
         _updateCustomQvioFields(message);
-    } else if (_fieldSelected) {
-        _updateFields(); // Don't update field info unless selected to reduce perf hit
+    } else if (_selected || _fieldSelected) {
+        // Keep the detail pane in sync for the currently selected message while
+        // still avoiding full updates for every unselected message.
+        _updateFields();
     }
     emit countChanged();
 }

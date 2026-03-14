@@ -73,6 +73,7 @@
 #endif
 
 #include <QtCore/QDateTime>
+#include <cmath>
 #include <cstring>
 
 QGC_LOGGING_CATEGORY(VehicleLog, "VehicleLog")
@@ -365,6 +366,10 @@ void Vehicle::_commonInit()
     _flightTimeUpdater.setInterval(1000);
     _flightTimeUpdater.setSingleShot(false);
     connect(&_flightTimeUpdater, &QTimer::timeout, this, &Vehicle::_updateFlightTime);
+
+    _recStatTelemetryTimer.setInterval(_recStatTelemetryTimeoutMsecs);
+    _recStatTelemetryTimer.setSingleShot(true);
+    connect(&_recStatTelemetryTimer, &QTimer::timeout, this, &Vehicle::_recStatTelemetryTimeout);
 
     // Set video stream to udp if running ArduSub and Video is disabled
     if (sub() && SettingsManager::instance()->videoSettings()->videoSource()->rawValue() == VideoSettings::videoDisabled) {
@@ -831,6 +836,23 @@ void Vehicle::_handleNamedValueFloat(LinkInterface *link, const mavlink_message_
         return;
     }
 
+    if (name == QStringLiteral("REC_STAT")) {
+        int recStatValue = 0;
+        const int roundedValue = qRound(pkt.value);
+        const bool validValue = std::isfinite(pkt.value)
+            && (std::fabs(pkt.value - static_cast<float>(roundedValue)) <= 0.001f)
+            && (roundedValue >= 0)
+            && (roundedValue <= 8);
+
+        if (validValue) {
+            recStatValue = roundedValue;
+        }
+
+        _setRecStatValue(recStatValue);
+        _recStatTelemetryTimer.start(_recStatTelemetryTimeoutMsecs);
+        return;
+    }
+
     if (name == QStringLiteral("QVIO_QUAL")) {
         if (auto customApp = qgcApp()->customApplication()) {
             if (auto handler = customApp->qvioHandler()) {
@@ -840,6 +862,51 @@ void Vehicle::_handleNamedValueFloat(LinkInterface *link, const mavlink_message_
     }
 }
 #endif
+
+QString Vehicle::recStatInternalState() const
+{
+    return _recStatInternalStateForValue(_recStatValue);
+}
+
+void Vehicle::_recStatTelemetryTimeout()
+{
+    _setRecStatValue(0);
+}
+
+void Vehicle::_setRecStatValue(int recStatValue)
+{
+    if (_recStatValue == recStatValue) {
+        return;
+    }
+
+    _recStatValue = recStatValue;
+    emit recStatChanged();
+}
+
+QString Vehicle::_recStatInternalStateForValue(int recStatValue) const
+{
+    switch (recStatValue) {
+    case 1:
+        return QStringLiteral("initializing");
+    case 2:
+        return QStringLiteral("waiting_for_time_sync");
+    case 3:
+        return QStringLiteral("waiting_for_arming");
+    case 4:
+        return QStringLiteral("ready_to_record");
+    case 5:
+        return QStringLiteral("recording");
+    case 6:
+        return QStringLiteral("blocked_low_data_space");
+    case 7:
+        return QStringLiteral("blocked_storage_check_failed");
+    case 8:
+        return QStringLiteral("stopped");
+    case 0:
+    default:
+        return QStringLiteral("unknown");
+    }
+}
 #if defined(QGC_CUSTOM_BUILD) && !defined(MAVLINK_MSG_ID_QVIO_STATUS)
 void Vehicle::_handleQvioStatus(const mavlink_message_t& message)
 {
@@ -1658,6 +1725,7 @@ bool Vehicle::sendMessageOnLinkThreadSafe(LinkInterface* link, mavlink_message_t
     link->writeBytesThreadSafe((const char*)buffer, len);
     _messagesSent++;
     emit messagesSentChanged();
+    emit mavlinkMessageSent(message);
 
     return true;
 }
@@ -4057,7 +4125,7 @@ void Vehicle::clearAllParamMapRC(void)
     }
 }
 
-void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons)
+void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons, float aux1, float aux2, uint8_t enabledExtensions)
 {
     SharedLinkInterfacePtr sharedLink = vehicleLinkManager()->primaryLink().lock();
     if (!sharedLink) {
@@ -4077,6 +4145,8 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
     float newPitchCommand  =    pitch * axesScaling;    // Joystick data is reverse of mavlink values
     float newYawCommand    =    yaw * axesScaling;
     float newThrustCommand =    thrust * axesScaling;
+    float newAux1Command   =    aux1 * axesScaling;
+    float newAux2Command   =    aux2 * axesScaling;
 
     mavlink_msg_manual_control_pack_chan(
         static_cast<uint8_t>(MAVLinkProtocol::instance()->getSystemId()),
@@ -4089,9 +4159,11 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
         static_cast<int16_t>(newThrustCommand),
         static_cast<int16_t>(newYawCommand),
         buttons, 0,
-        0,
+        enabledExtensions,
         0, 0,
-        0, 0, 0, 0, 0, 0
+        static_cast<int16_t>(newAux1Command),
+        static_cast<int16_t>(newAux2Command),
+        0, 0, 0, 0
     );
     sendMessageOnLinkThreadSafe(sharedLink.get(), message);
 }

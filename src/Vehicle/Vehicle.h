@@ -196,6 +196,8 @@ public:
     Q_PROPERTY(int                  telemetryLRSSI              READ telemetryLRSSI                                                 NOTIFY telemetryLRSSIChanged)
     Q_PROPERTY(float                wifiRSSI                    READ wifiRSSI                                                       NOTIFY wifiRSSIChanged)
     Q_PROPERTY(uint                 wifiRSSITimeBootMs          READ wifiRSSITimeBootMs                                             NOTIFY wifiRSSITimeBootMsChanged)
+    Q_PROPERTY(int                  recStatValue                READ recStatValue                                                   NOTIFY recStatChanged)
+    Q_PROPERTY(QString              recStatInternalState        READ recStatInternalState                                           NOTIFY recStatChanged)
     Q_PROPERTY(unsigned int         telemetryRXErrors           READ telemetryRXErrors                                              NOTIFY telemetryRXErrorsChanged)
     Q_PROPERTY(unsigned int         telemetryFixed              READ telemetryFixed                                                 NOTIFY telemetryFixedChanged)
     Q_PROPERTY(unsigned int         telemetryTXBuffer           READ telemetryTXBuffer                                              NOTIFY telemetryTXBufferChanged)
@@ -444,7 +446,7 @@ public:
 
     bool joystickEnabled            () const;
     void setJoystickEnabled         (bool enabled);
-    void sendJoystickDataThreadSafe (float roll, float pitch, float yaw, float thrust, quint16 buttons);
+    void sendJoystickDataThreadSafe (float roll, float pitch, float yaw, float thrust, quint16 buttons, float aux1 = 0.0f, float aux2 = 0.0f, uint8_t enabledExtensions = 0);
 
     // Property accesors
     int id() const{ return _id; }
@@ -568,6 +570,8 @@ public:
     int             telemetryLRSSI              () const{ return _telemetryLRSSI; }
     float           wifiRSSI                    () const{ return _wifiRSSI; }
     uint            wifiRSSITimeBootMs          () const{ return _wifiRSSITimeBootMs; }
+    int             recStatValue                () const{ return _recStatValue; }
+    QString         recStatInternalState        () const;
     unsigned int    telemetryRXErrors           () const{ return _telemetryRXErrors; }
     unsigned int    telemetryFixed              () const{ return _telemetryFixed; }
     unsigned int    telemetryTXBuffer           () const{ return _telemetryTXBuffer; }
@@ -832,6 +836,7 @@ signals:
     void coordinateChanged              (QGeoCoordinate coordinate);
     void joystickEnabledChanged         (bool enabled);
     void mavlinkMessageReceived         (const mavlink_message_t& message);
+    void mavlinkMessageSent             (const mavlink_message_t& message);
     void homePositionChanged            (const QGeoCoordinate& homePosition);
     void armedPositionChanged();
     void armedChanged                   (bool armed);
@@ -863,6 +868,7 @@ signals:
     void telemetryLRSSIChanged          (int value);
     void wifiRSSIChanged               (float value);
     void wifiRSSITimeBootMsChanged     (uint value);
+    void recStatChanged                ();
     void telemetryRXErrorsChanged       (unsigned int value);
     void telemetryFixedChanged          (unsigned int value);
     void telemetryTXBufferChanged       (unsigned int value);
@@ -1059,6 +1065,9 @@ private:
     int             _telemetryLRSSI = 0;
     float           _wifiRSSI = 0.f;
     uint            _wifiRSSITimeBootMs = 0;
+    int             _recStatValue = 0;
+    QTimer          _recStatTelemetryTimer;
+    static const int _recStatTelemetryTimeoutMsecs = 3000;
     uint32_t        _telemetryRXErrors = 0;
     uint32_t        _telemetryFixed = 0;
     uint32_t        _telemetryTXBuffer = 0;
@@ -1324,6 +1333,9 @@ signals:
 
 private:
     void _handleMessageInterval(const mavlink_message_t& message);
+    void _recStatTelemetryTimeout();
+    void _setRecStatValue(int recStatValue);
+    QString _recStatInternalStateForValue(int recStatValue) const;
 
     static void _requestMessageMessageIntervalResultHandler(void* resultHandlerData, MAV_RESULT result, RequestMessageResultHandlerFailureCode_t failureCode, const mavlink_message_t& message);
     void _requestMessageInterval(uint8_t compId, uint16_t msgId);

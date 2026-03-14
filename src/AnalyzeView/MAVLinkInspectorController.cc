@@ -48,10 +48,20 @@ MAVLinkInspectorController::MAVLinkInspectorController(QObject *parent)
 {
     // qCDebug(MAVLinkInspectorControllerLog) << Q_FUNC_INFO << this;
 
+    (void) qRegisterMetaType<mavlink_message_t>("mavlink_message_t");
+
     MultiVehicleManager *const multiVehicleManager = MultiVehicleManager::instance();
     (void) connect(multiVehicleManager, &MultiVehicleManager::vehicleAdded,   this, &MAVLinkInspectorController::_vehicleAdded);
     (void) connect(multiVehicleManager, &MultiVehicleManager::vehicleRemoved, this, &MAVLinkInspectorController::_vehicleRemoved);
     (void) connect(multiVehicleManager, &MultiVehicleManager::activeVehicleChanged, this, &MAVLinkInspectorController::_setActiveVehicle);
+
+    for (int i = 0; i < multiVehicleManager->vehicles()->count(); i++) {
+        Vehicle *const vehicle = qobject_cast<Vehicle*>(multiVehicleManager->vehicles()->get(i));
+        if (vehicle) {
+            _vehicleAdded(vehicle);
+        }
+    }
+    _setActiveVehicle(multiVehicleManager->activeVehicle());
 
     MAVLinkProtocol *const mavlinkProtocol = MAVLinkProtocol::instance();
     (void) connect(mavlinkProtocol, &MAVLinkProtocol::messageReceived, this, &MAVLinkInspectorController::_receiveMessage);
@@ -179,6 +189,8 @@ void MAVLinkInspectorController::_vehicleAdded(Vehicle *vehicle)
         });
     }
 
+    (void) connect(vehicle, &Vehicle::mavlinkMessageSent, this, &MAVLinkInspectorController::_receiveSentMessage, Qt::UniqueConnection);
+
     emit systemsChanged();
 }
 
@@ -201,7 +213,24 @@ void MAVLinkInspectorController::_vehicleRemoved(const Vehicle *vehicle)
 void MAVLinkInspectorController::_receiveMessage(LinkInterface *link, const mavlink_message_t &message)
 {
     Q_UNUSED(link);
+    _handleMessage(message);
+}
 
+void MAVLinkInspectorController::_receiveSentMessage(const mavlink_message_t &message)
+{
+    mavlink_message_t displayMessage = message;
+
+    if (message.msgid == MAVLINK_MSG_ID_MANUAL_CONTROL) {
+        mavlink_manual_control_t manualControl;
+        mavlink_msg_manual_control_decode(&message, &manualControl);
+        displayMessage.sysid = manualControl.target;
+    }
+
+    _handleMessage(displayMessage);
+}
+
+void MAVLinkInspectorController::_handleMessage(const mavlink_message_t &message)
+{
     QGCMAVLinkMessage *msg = nullptr;
     QGCMAVLinkSystem *system = _findVehicle(message.sysid);
 

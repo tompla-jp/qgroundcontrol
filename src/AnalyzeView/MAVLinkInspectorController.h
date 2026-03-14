@@ -86,12 +86,14 @@ signals:
 
 private slots:
     void _receiveMessage(LinkInterface *link, const mavlink_message_t &message);
+    void _receiveSentMessage(const mavlink_message_t &message);
     void _refreshFrequency();
     void _setActiveVehicle(Vehicle *vehicle);
     void _vehicleAdded(Vehicle *vehicle);
     void _vehicleRemoved(const Vehicle *vehicle);
 
 private:
+    void _handleMessage(const mavlink_message_t &message);
     QGCMAVLinkSystem *_findVehicle(uint8_t id);
     uint8_t _selectedSystemID() const;
     uint8_t _selectedComponentID() const;

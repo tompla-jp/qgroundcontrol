@@ -76,6 +76,47 @@ ApplicationWindow {
     function showPlanView() {
         showTool(qsTr("Plan Flight"), "qrc:/qml/PlanView.qml")
     }
+    function recStatColor(recStatValue) {
+        switch (recStatValue) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+            return "#f5c542"
+        case 4:
+        case 5:
+            return "#3bc46b"
+        case 6:
+        case 7:
+        case 8:
+            return "#ff4d4f"
+        default:
+            return "#9aa5b1"
+        }
+    }
+    function recStatDisplayText(recStatValue) {
+        switch (recStatValue) {
+        case 1:
+            return qsTr("ソフトウェアの初期化中です")
+        case 2:
+            return qsTr("時刻を同期中です")
+        case 3:
+            return qsTr("アームを待機しています")
+        case 4:
+            return qsTr("録画が可能です")
+        case 5:
+            return qsTr("録画中")
+        case 6:
+            return qsTr("空き容量が不足しています")
+        case 7:
+            return qsTr("ストレージ確認に失敗しました")
+        case 8:
+            return qsTr("録画不可")
+        case 0:
+        default:
+            return qsTr("録画状態がわかりません")
+        }
+    }
 
     Component {
         id: toolPageComponent
@@ -465,6 +506,96 @@ ApplicationWindow {
                     }
 
                     // Default photo/video control widget (top-right)
+                    Item {
+                        id: recStatBadge
+                        anchors.right: photoVideoControl.left
+                        anchors.top: photoVideoControl.top
+                        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 1.1
+                        z: 20
+                        width: recStatSummary.implicitWidth
+                        height: recStatSummary.implicitHeight
+                        visible: photoVideoControl.visible && !!mainWindow.activeVehicle
+
+                        readonly property int recStatValue: mainWindow.activeVehicle ? mainWindow.activeVehicle.recStatValue : 0
+                        property bool popupVisible: false
+
+                        Rectangle {
+                            id: recStatSummary
+                            anchors.fill: parent
+                            radius: ScreenTools.defaultFontPixelHeight * 0.45
+                            color: Qt.rgba(0, 0, 0, 0.42)
+                            border.width: 1
+                            border.color: mainWindow.recStatColor(recStatBadge.recStatValue)
+                            implicitWidth: recStatSummaryRow.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.6
+                            implicitHeight: recStatSummaryRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
+
+                            Row {
+                                id: recStatSummaryRow
+                                anchors.centerIn: parent
+                                spacing: ScreenTools.defaultFontPixelWidth * 0.5
+
+                                QGCColoredImage {
+                                    id: recStatVideoIcon
+                                    width: ScreenTools.defaultFontPixelHeight * 1.05
+                                    height: width
+                                    source: "/qmlimages/camera_video.svg"
+                                    color: mainWindow.recStatColor(recStatBadge.recStatValue)
+                                }
+
+                                QGCLabel {
+                                    text: qsTr("REC STAT")
+                                    color: mainWindow.recStatColor(recStatBadge.recStatValue)
+                                    font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                                    font.bold: true
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: recStatBadge.popupVisible = !recStatBadge.popupVisible
+                            }
+                        }
+
+                        Rectangle {
+                            id: recStatPopup
+                            z: 19
+                            visible: recStatBadge.popupVisible
+                            x: Math.min(0, recStatBadge.width - width)
+                            y: recStatBadge.height + ScreenTools.defaultFontPixelHeight * 0.35
+                            readonly property real horizontalPadding: ScreenTools.defaultFontPixelHeight * 0.32
+                            readonly property real verticalPadding: ScreenTools.defaultFontPixelHeight * 0.32
+                            width: Math.min(hudLayer.width * 0.34, recStatPopupText.implicitWidth + horizontalPadding * 2)
+                            height: recStatPopupText.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.95
+                            radius: ScreenTools.defaultFontPixelHeight * 0.45
+                            color: Qt.rgba(0, 0, 0, 0.58)
+                            border.width: 1
+                            border.color: mainWindow.recStatColor(recStatBadge.recStatValue)
+
+                            QGCLabel {
+                                id: recStatPopupText
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.topMargin: recStatPopup.verticalPadding
+                                anchors.rightMargin: recStatPopup.horizontalPadding
+                                width: parent.width - recStatPopup.horizontalPadding * 2
+                                text: mainWindow.recStatDisplayText(recStatBadge.recStatValue)
+                                color: qgcPal.text
+                                font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.86
+                                font.bold: true
+                                wrapMode: Text.WrapAnywhere
+                                horizontalAlignment: Text.AlignRight
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        z: 19
+                        visible: recStatBadge.popupVisible
+                        enabled: visible
+                        onClicked: recStatBadge.popupVisible = false
+                    }
+
                     PhotoVideoControl {
                         id: photoVideoControl
                         anchors.right: parent.right

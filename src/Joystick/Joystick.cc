@@ -202,6 +202,7 @@ void Joystick::_loadSettings()
 
     bool badSettings = false;
     bool convertOk;
+    int storedFunctionAxis[maxFunction];
 
     _calibrated = settings.value(_calibratedSettingsKey, false).toBool();
     _exponential = settings.value(_exponentialSettingsKey, 0).toFloat();
@@ -246,6 +247,7 @@ void Joystick::_loadSettings()
     int workingAxis = 0;
     for (int function = 0; function < maxFunction; function++) {
         int functionAxis = settings.value(_rgFunctionSettingsKey[function], -1).toInt(&convertOk);
+        storedFunctionAxis[function] = functionAxis;
         badSettings |= (!convertOk || (functionAxis >= _axisCount));
 
         if (functionAxis >= 0) {
@@ -264,6 +266,44 @@ void Joystick::_loadSettings()
     // FunctionAxis mappings are always stored in TX mode 2
     // Remap to stored TX mode in settings
     _remapAxes (2, _transmitterMode, _rgFunctionAxis);
+
+    bool migratedAuxAxisMapping = false;
+    if (_axisCount > 4) {
+        QVector<bool> usedAxes(_axisCount, false);
+        for (int function = 0; function < maxFunction; function++) {
+            if ((storedFunctionAxis[function] >= 0) && (storedFunctionAxis[function] < _axisCount)) {
+                usedAxes[_rgFunctionAxis[function]] = true;
+            }
+        }
+
+        const auto assignMissingAuxAxis = [&](AxisFunction_t function, int preferredAxis) {
+            if ((storedFunctionAxis[function] >= 0) && (storedFunctionAxis[function] < _axisCount)) {
+                return;
+            }
+
+            int axis = preferredAxis;
+            if ((axis < 0) || (axis >= _axisCount) || usedAxes[axis]) {
+                axis = -1;
+                for (int candidate = 0; candidate < _axisCount; candidate++) {
+                    if (!usedAxes[candidate]) {
+                        axis = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (axis >= 0) {
+                _rgFunctionAxis[function] = axis;
+                usedAxes[axis] = true;
+                migratedAuxAxisMapping = true;
+            }
+        };
+
+        assignMissingAuxAxis(gimbalPitchFunction, 4);
+        if (_axisCount > 5) {
+            assignMissingAuxAxis(gimbalYawFunction, 5);
+        }
+    }
 
     for (int button = 0; button < _totalButtonCount; button++) {
         const QString buttonAction = settings.value(QString(_buttonActionNameKey).arg(button), QString()).toString();
@@ -287,6 +327,11 @@ void Joystick::_loadSettings()
     if (badSettings) {
         _calibrated = false;
         settings.setValue(_calibratedSettingsKey, false);
+    }
+
+    if (migratedAuxAxisMapping) {
+        qCDebug(JoystickLog) << Q_FUNC_INFO << "migrated aux axis mapping" << _rgFunctionAxis[gimbalPitchFunction] << _rgFunctionAxis[gimbalYawFunction];
+        _saveSettings();
     }
 }
 
@@ -608,16 +653,27 @@ void Joystick::_handleAxis()
     axis = _rgFunctionAxis[throttleFunction];
     float throttle = _adjustRange(_rgAxisValues[axis], _rgCalibration[axis], (_throttleMode == ThrottleModeDownZero) ? false :_deadband);
 
+    int aux1Axis = -1;
+    int aux2Axis = -1;
+    const bool useG4AuxAxes = _name.contains(QStringLiteral("G4"), Qt::CaseInsensitive);
+
+    // Custom G4 controllers expose the rotary dials on raw axes 0 and 3.
+    if (useG4AuxAxes) {
+        aux1Axis = (_axisCount > 0) ? 0 : -1;
+        aux2Axis = (_axisCount > 3) ? 3 : -1;
+    } else {
+        aux1Axis = (_axisCount > 4) ? _rgFunctionAxis[gimbalPitchFunction] : -1;
+        aux2Axis = (_axisCount > 5) ? _rgFunctionAxis[gimbalYawFunction]   : -1;
+    }
+
     float gimbalPitch = 0.0f;
-    if (_axisCount > 4) {
-        axis = _rgFunctionAxis[gimbalPitchFunction];
-        gimbalPitch = _adjustRange(_rgAxisValues[axis], _rgCalibration[axis],_deadband);
+    if (aux1Axis >= 0) {
+        gimbalPitch = _adjustRange(_rgAxisValues[aux1Axis], _rgCalibration[aux1Axis], _deadband);
     }
 
     float gimbalYaw = 0.0f;
-    if (_axisCount > 5) {
-        axis = _rgFunctionAxis[gimbalYawFunction];
-        gimbalYaw = _adjustRange(_rgAxisValues[axis],   _rgCalibration[axis],_deadband);
+    if (aux2Axis >= 0) {
+        gimbalYaw = _adjustRange(_rgAxisValues[aux2Axis], _rgCalibration[aux2Axis], _deadband);
     }
 
     if (_accumulator) {
@@ -673,7 +729,16 @@ void Joystick::_handleAxis()
     emit axisValues(roll, pitch, yaw, throttle);
 
     const uint16_t shortButtons = static_cast<uint16_t>(buttonPressedBits & 0xFFFF);
-    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons);
+
+    uint8_t enabledExtensions = 0;
+    if (aux1Axis >= 0) {
+        enabledExtensions |= (1 << 2); // aux1
+    }
+    if (aux2Axis >= 0) {
+        enabledExtensions |= (1 << 3); // aux2
+    }
+
+    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons, gimbalPitch, gimbalYaw, enabledExtensions);
 }
 
 void Joystick::startPolling(Vehicle* vehicle)
