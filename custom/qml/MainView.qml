@@ -79,10 +79,11 @@ ApplicationWindow {
     function recStatColor(recStatValue) {
         switch (recStatValue) {
         case 0:
+            return "#ff4d4f"
         case 1:
         case 2:
-        case 3:
             return "#f5c542"
+        case 3:
         case 4:
         case 5:
             return "#3bc46b"
@@ -101,20 +102,40 @@ ApplicationWindow {
         case 2:
             return qsTr("時刻を同期中です")
         case 3:
-            return qsTr("アームを待機しています")
+            return qsTr("録画可能です")
         case 4:
             return qsTr("録画が可能です")
         case 5:
-            return qsTr("録画中")
+            return qsTr("録画しています")
         case 6:
             return qsTr("空き容量が不足しています")
         case 7:
             return qsTr("ストレージ確認に失敗しました")
         case 8:
-            return qsTr("録画不可")
+            return qsTr("ソフトウェアが停止しています")
         case 0:
         default:
             return qsTr("録画状態がわかりません")
+        }
+    }
+    function recStatShortText(recStatValue) {
+        switch (recStatValue) {
+        case 4:
+            return qsTr("録画可能")
+        case 5:
+            return qsTr("録画中")
+        case 6:
+        case 7:
+        case 8:
+            return qsTr("録画不可")
+        case 0:
+            return qsTr("録画不可")
+        case 3:
+            return qsTr("録画可能")
+        case 1:
+        case 2:
+        default:
+            return qsTr("録画待機")
         }
     }
 
@@ -543,7 +564,7 @@ ApplicationWindow {
                                 }
 
                                 QGCLabel {
-                                    text: qsTr("REC STAT")
+                                    text: mainWindow.recStatShortText(recStatBadge.recStatValue)
                                     color: mainWindow.recStatColor(recStatBadge.recStatValue)
                                     font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
                                     font.bold: true
