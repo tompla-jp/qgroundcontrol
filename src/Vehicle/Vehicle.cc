@@ -4145,8 +4145,14 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
     float newPitchCommand  =    pitch * axesScaling;    // Joystick data is reverse of mavlink values
     float newYawCommand    =    yaw * axesScaling;
     float newThrustCommand =    thrust * axesScaling;
-    const int16_t newAux1Command = static_cast<int16_t>(qBound(-32767, aux1, 32767));
-    const int16_t newAux2Command = static_cast<int16_t>(qBound(-32767, aux2, 32767));
+    auto mapAuxToManualControl = [](int rawAux) {
+        constexpr double rawAuxMax = 32000.0;
+        constexpr double manualControlAuxMax = 1000.0;
+        const int scaledAux = qRound((static_cast<double>(rawAux) * manualControlAuxMax) / rawAuxMax);
+        return static_cast<int16_t>(qBound(-1000, scaledAux, 1000));
+    };
+    const int16_t newAux1Command = mapAuxToManualControl(aux1);
+    const int16_t newAux2Command = mapAuxToManualControl(aux2);
 
     mavlink_msg_manual_control_pack_chan(
         static_cast<uint8_t>(MAVLinkProtocol::instance()->getSystemId()),
