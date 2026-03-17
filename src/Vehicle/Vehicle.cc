@@ -4125,7 +4125,7 @@ void Vehicle::clearAllParamMapRC(void)
     }
 }
 
-void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons, float aux1, float aux2, uint8_t enabledExtensions)
+void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons, int aux1, int aux2, uint8_t enabledExtensions)
 {
     SharedLinkInterfacePtr sharedLink = vehicleLinkManager()->primaryLink().lock();
     if (!sharedLink) {
@@ -4145,8 +4145,8 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
     float newPitchCommand  =    pitch * axesScaling;    // Joystick data is reverse of mavlink values
     float newYawCommand    =    yaw * axesScaling;
     float newThrustCommand =    thrust * axesScaling;
-    float newAux1Command   =    aux1 * axesScaling;
-    float newAux2Command   =    aux2 * axesScaling;
+    const int16_t newAux1Command = static_cast<int16_t>(qBound(-32767, aux1, 32767));
+    const int16_t newAux2Command = static_cast<int16_t>(qBound(-32767, aux2, 32767));
 
     mavlink_msg_manual_control_pack_chan(
         static_cast<uint8_t>(MAVLinkProtocol::instance()->getSystemId()),
@@ -4161,8 +4161,8 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
         buttons, 0,
         enabledExtensions,
         0, 0,
-        static_cast<int16_t>(newAux1Command),
-        static_cast<int16_t>(newAux2Command),
+        newAux1Command,
+        newAux2Command,
         0, 0, 0, 0
     );
     sendMessageOnLinkThreadSafe(sharedLink.get(), message);

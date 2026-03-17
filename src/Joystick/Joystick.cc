@@ -676,6 +676,9 @@ void Joystick::_handleAxis()
         gimbalYaw = _adjustRange(_rgAxisValues[aux2Axis], _rgCalibration[aux2Axis], _deadband);
     }
 
+    const int rawAux1 = (aux1Axis >= 0) ? _rgAxisValues[aux1Axis] : 0;
+    const int rawAux2 = (aux2Axis >= 0) ? _rgAxisValues[aux2Axis] : 0;
+
     if (_accumulator) {
         static float throttle_accu = 0.f;
         throttle_accu += (throttle * (40 / 1000.f)); // for throttle to change from min to max it will take 1000ms (40ms is a loop time)
@@ -714,7 +717,7 @@ void Joystick::_handleAxis()
         throttle = (throttle + 1.0f) / 2.0f;
     }
 
-    qCDebug(JoystickValuesLog) << "name:roll:pitch:yaw:throttle:gimbalPitch:gimbalYaw" << name() << roll << -pitch << yaw << throttle << gimbalPitch << gimbalYaw;
+    qCDebug(JoystickValuesLog) << "name:roll:pitch:yaw:throttle:gimbalPitch:gimbalYaw:rawAux1:rawAux2" << name() << roll << -pitch << yaw << throttle << gimbalPitch << gimbalYaw << rawAux1 << rawAux2;
 
     // NOTE: The buttonPressedBits going to MANUAL_CONTROL are currently used by ArduSub (and it only handles 16 bits)
     // Set up button bitmap
@@ -738,7 +741,7 @@ void Joystick::_handleAxis()
         enabledExtensions |= (1 << 3); // aux2
     }
 
-    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons, gimbalPitch, gimbalYaw, enabledExtensions);
+    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons, rawAux1, rawAux2, enabledExtensions);
 }
 
 void Joystick::startPolling(Vehicle* vehicle)
