@@ -77,6 +77,28 @@ ApplicationWindow {
     function showPlanView() {
         showTool(qsTr("Plan Flight"), "qrc:/qml/PlanView.qml")
     }
+
+    function showMessageDialog(dialogTitle, dialogText, buttons = Dialog.Ok, acceptFunction = null, closeFunction = null) {
+        simpleMessageDialogComponent.createObject(mainWindow, {
+            title: dialogTitle,
+            text: dialogText,
+            buttons: buttons,
+            acceptFunction: acceptFunction,
+            closeFunction: closeFunction
+        }).open()
+    }
+
+    function _showMessageDialog(dialogTitle, dialogText) {
+        showMessageDialog(dialogTitle, dialogText)
+    }
+
+    Component {
+        id: simpleMessageDialogComponent
+
+        QGCSimpleMessageDialog {
+        }
+    }
+
     function recStatColor(recStatValue) {
         switch (recStatValue) {
         case 0:

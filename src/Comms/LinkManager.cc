@@ -631,6 +631,7 @@ void LinkManager::removeConfiguration(LinkConfiguration *config)
 
     LinkInterface* const link = config->link();
     if (link) {
+        config->setLink(nullptr);
         link->disconnect();
     }
 

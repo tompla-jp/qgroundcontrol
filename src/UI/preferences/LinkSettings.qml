@@ -124,16 +124,23 @@ SettingsPage {
                     Layout.fillWidth:   true
                     text:               object.name
                 }
-                QGCColoredImage {
-                    height:                 ScreenTools.minTouchPixels
-                    width:                  height
-                    sourceSize.height:      height
-                    fillMode:               Image.PreserveAspectFit
-                    mipmap:                 true
-                    smooth:                 true
-                    color:                  qgcPalEdit.text
-                    source:                 "/res/pencil.svg"
+                Item {
+                    Layout.preferredWidth:   ScreenTools.minTouchPixels
+                    Layout.preferredHeight:  ScreenTools.minTouchPixels
+                    Layout.alignment:        Qt.AlignVCenter
                     enabled:                !object.link
+
+                    QGCColoredImage {
+                        anchors.centerIn:         parent
+                        width:                    ScreenTools.defaultFontPixelHeight * 1.1
+                        height:                   width
+                        sourceSize.height:        height
+                        fillMode:                 Image.PreserveAspectFit
+                        mipmap:                   true
+                        smooth:                   true
+                        color:                    qgcPalEdit.text
+                        source:                   "/res/pencil.svg"
+                    }
 
                     QGCPalette {
                         id: qgcPalEdit
@@ -148,15 +155,22 @@ SettingsPage {
                         }
                     }
                 }
-                QGCColoredImage {
-                    height:                 ScreenTools.minTouchPixels
-                    width:                  height
-                    sourceSize.height:      height
-                    fillMode:               Image.PreserveAspectFit
-                    mipmap:                 true
-                    smooth:                 true
-                    color:                  qgcPalDelete.text
-                    source:                 "/res/TrashDelete.svg"
+                Item {
+                    Layout.preferredWidth:   ScreenTools.minTouchPixels
+                    Layout.preferredHeight:  ScreenTools.minTouchPixels
+                    Layout.alignment:        Qt.AlignVCenter
+
+                    QGCColoredImage {
+                        anchors.centerIn:         parent
+                        width:                    ScreenTools.defaultFontPixelHeight * 1.1
+                        height:                   width
+                        sourceSize.height:        height
+                        fillMode:                 Image.PreserveAspectFit
+                        mipmap:                   true
+                        smooth:                   true
+                        color:                    qgcPalDelete.text
+                        source:                   "/res/TrashDelete.svg"
+                    }
 
                     QGCPalette {
                         id: qgcPalDelete
@@ -165,13 +179,17 @@ SettingsPage {
 
                     QGCMouseArea {
                         fillItem:   parent
-                        onClicked:  mainWindow.showMessageDialog(
-                                        qsTr("Delete Link"), 
-                                        qsTr("Are you sure you want to delete '%1'?").arg(object.name), 
-                                        Dialog.Ok | Dialog.Cancel, 
-                                        function () {
-                                            _linkManager.removeConfiguration(object)
-                                        })
+                        onClicked: {
+                            const configToDelete = object
+                            const configName = configToDelete.name
+                            mainWindow.showMessageDialog(
+                                qsTr("Delete Link"),
+                                qsTr("Are you sure you want to delete '%1'?").arg(configName),
+                                Dialog.Ok | Dialog.Cancel,
+                                function () {
+                                    _linkManager.removeConfiguration(configToDelete)
+                                })
+                        }
                     }
                 }
                 QGCButton {
