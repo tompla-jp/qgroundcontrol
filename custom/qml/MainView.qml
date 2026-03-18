@@ -9,6 +9,7 @@ import QGroundControl.Palette
 import QGroundControl.ScreenTools
 import QGroundControl.FlightDisplay
 import QGroundControl.FlightMap
+import QGroundControl.Vehicle
 import "HUD"
 import "Video"
 
@@ -136,6 +137,40 @@ ApplicationWindow {
         case 2:
         default:
             return qsTr("録画待機")
+        }
+    }
+    function recStatCompactColor(recStatValue) {
+        switch (recStatValue) {
+        case 3:
+        case 4:
+            return "#3bc46b"
+        case 5:
+            return "#ff4d4f"
+        case 0:
+        case 1:
+        case 2:
+        case 6:
+        case 7:
+        case 8:
+        default:
+            return "#ffffff"
+        }
+    }
+    function recStatCompactText(recStatValue) {
+        switch (recStatValue) {
+        case 3:
+        case 4:
+            return qsTr("録画可能")
+        case 5:
+            return qsTr("録画中")
+        case 0:
+        case 1:
+        case 2:
+        case 6:
+        case 7:
+        case 8:
+        default:
+            return qsTr("録画不可")
         }
     }
 
@@ -526,82 +561,190 @@ ApplicationWindow {
                         visible: !!mainWindow.activeVehicle
                     }
 
-                    // Default photo/video control widget (top-right)
+                    // Temporary top-right storage-only badge while camera UI is being rebuilt.
                     Item {
-                        id: recStatBadge
-                        anchors.right: photoVideoControl.left
-                        anchors.top: photoVideoControl.top
-                        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 1.1
+                        id: cameraStorageBadge
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: ScreenTools.defaultFontPixelHeight * 1.5
                         z: 20
-                        width: recStatSummary.implicitWidth
-                        height: recStatSummary.implicitHeight
-                        visible: photoVideoControl.visible && !!mainWindow.activeVehicle
+                        readonly property var activeVehicle: globals.activeVehicle
+                        readonly property var cameraManager: globals.activeVehicle ? globals.activeVehicle.cameraManager : null
+                        readonly property var activeCamera: cameraManager ? cameraManager.currentCameraInstance : null
+                        property bool recStatusPopupVisible: false
+                        readonly property real badgeHorizontalPadding: ScreenTools.defaultFontPixelWidth * 0.9
+                        readonly property real cameraIconOffsetX: -ScreenTools.defaultFontPixelWidth * 0.18
+                        readonly property real cameraIconOffsetY: 0
+                        readonly property real cameraControlExtraWidth: Screen.pixelDensity * 6
+                        readonly property real cameraControlExtraHeight: Screen.pixelDensity * 2.5
+                        readonly property real badgeWidth: Math.max(
+                            storageLabel.implicitWidth + badgeHorizontalPadding * 2 + ScreenTools.defaultFontPixelWidth * 0.3,
+                            recStatusRow.implicitWidth + badgeHorizontalPadding * 2,
+                            cameraControlRow.implicitWidth + badgeHorizontalPadding * 2 + cameraControlExtraWidth
+                        )
+                        visible: !!activeCamera
+                        width: badgeWidth
+                        height: badgeStack.implicitHeight
 
-                        readonly property int recStatValue: mainWindow.activeVehicle ? mainWindow.activeVehicle.recStatValue : 0
-                        property bool popupVisible: false
+                        Column {
+                            id: badgeStack
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            spacing: ScreenTools.defaultFontPixelHeight * 0.3
+                            width: cameraStorageBadge.badgeWidth
 
-                        Rectangle {
-                            id: recStatSummary
-                            anchors.fill: parent
-                            radius: ScreenTools.defaultFontPixelHeight * 0.45
-                            color: Qt.rgba(0, 0, 0, 0.42)
-                            border.width: 1
-                            border.color: mainWindow.recStatColor(recStatBadge.recStatValue)
-                            implicitWidth: recStatSummaryRow.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.6
-                            implicitHeight: recStatSummaryRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
-
-                            Row {
-                                id: recStatSummaryRow
-                                anchors.centerIn: parent
-                                spacing: ScreenTools.defaultFontPixelWidth * 0.5
-
-                                QGCColoredImage {
-                                    id: recStatVideoIcon
-                                    width: ScreenTools.defaultFontPixelHeight * 1.05
-                                    height: width
-                                    source: "/qmlimages/camera_video.svg"
-                                    color: mainWindow.recStatColor(recStatBadge.recStatValue)
-                                }
+                            Rectangle {
+                                id: storageBadgeBackground
+                                width: cameraStorageBadge.badgeWidth
+                                radius: ScreenTools.defaultFontPixelHeight * 0.45
+                                color: Qt.rgba(0, 0, 0, 0.42)
+                                border.width: 1
+                                border.color: Qt.rgba(255, 255, 255, 0.28)
+                                implicitHeight: storageLabel.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
 
                                 QGCLabel {
-                                    text: mainWindow.recStatShortText(recStatBadge.recStatValue)
-                                    color: mainWindow.recStatColor(recStatBadge.recStatValue)
+                                    id: storageLabel
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: cameraStorageBadge.badgeHorizontalPadding
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: qsTr("空き容量: %1").arg(cameraStorageBadge.activeCamera ? cameraStorageBadge.activeCamera.storageFreeStr : "--")
+                                    color: qgcPal.text
                                     font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
                                     font.bold: true
                                 }
                             }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: recStatBadge.popupVisible = !recStatBadge.popupVisible
+                            Rectangle {
+                                id: recStatusBackground
+                                width: cameraStorageBadge.badgeWidth
+                                radius: ScreenTools.defaultFontPixelHeight * 0.45
+                                color: Qt.rgba(0, 0, 0, 0.42)
+                                border.width: 1
+                                border.color: Qt.rgba(255, 255, 255, 0.28)
+                                implicitHeight: recStatusRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
+
+                                Row {
+                                    id: recStatusRow
+                                    anchors.centerIn: parent
+                                    spacing: ScreenTools.defaultFontPixelWidth * 0.45
+
+                                    QGCColoredImage {
+                                        id: recStatusIcon
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: ScreenTools.defaultFontPixelHeight * 0.95
+                                        height: width
+                                        source: "/qmlimages/camera_video.svg"
+                                        color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                    }
+
+                                    QGCLabel {
+                                        id: recStatusLabel
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: recStatCompactText(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                        color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                        font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                                        font.bold: true
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: cameraStorageBadge.recStatusPopupVisible = !cameraStorageBadge.recStatusPopupVisible
+                                }
+                            }
+
+                            Rectangle {
+                                id: cameraControlBackground
+                                width: cameraStorageBadge.badgeWidth
+                                radius: ScreenTools.defaultFontPixelHeight * 0.45
+                                color: Qt.rgba(0, 0, 0, 0.42)
+                                border.width: 1
+                                border.color: Qt.rgba(255, 255, 255, 0.28)
+                                visible: cameraStorageBadge.activeCamera && cameraStorageBadge.activeCamera.capturesPhotos
+                                implicitHeight: cameraControlRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.45 + cameraStorageBadge.cameraControlExtraHeight
+
+                                Row {
+                                    id: cameraControlRow
+                                    anchors.centerIn: parent
+                                    spacing: ScreenTools.defaultFontPixelWidth * 1.2
+
+                                    Rectangle {
+                                        id: cameraIconContainer
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: ScreenTools.defaultFontPixelHeight * 1.45
+                                        height: width
+                                        radius: ScreenTools.defaultFontPixelHeight * 0.22
+                                        color: Qt.rgba(0, 0, 0, 0)
+
+                                        QGCColoredImage {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            anchors.horizontalCenterOffset: cameraStorageBadge.cameraIconOffsetX
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.verticalCenterOffset: cameraStorageBadge.cameraIconOffsetY
+                                            width: parent.width * 0.74
+                                            height: width
+                                            source: "/qmlimages/camera_photo.svg"
+                                            color: qgcPal.colorGreen
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        id: shutterButtonOuter
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: ScreenTools.defaultFontPixelHeight * 1.95
+                                        height: width
+                                        radius: width * 0.5
+                                        color: Qt.rgba(0, 0, 0, 0)
+                                        border.width: 2
+                                        border.color: "#ffffff"
+
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: parent.width * 0.74
+                                            height: width
+                                            radius: width * 0.5
+                                            color: cameraStorageBadge.activeCamera && cameraStorageBadge.activeCamera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IN_PROGRESS ? "#ff4d4f" : "#ffffff"
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            enabled: !!cameraStorageBadge.activeCamera
+                                            onClicked: {
+                                                cameraStorageBadge.activeCamera.setCameraModePhoto()
+                                                if (cameraStorageBadge.activeCamera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IN_PROGRESS) {
+                                                    cameraStorageBadge.activeCamera.stopTakePhoto()
+                                                } else {
+                                                    cameraStorageBadge.activeCamera.takePhoto()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
                         Rectangle {
-                            id: recStatPopup
-                            z: 19
-                            visible: recStatBadge.popupVisible
-                            x: Math.min(0, recStatBadge.width - width)
-                            y: recStatBadge.height + ScreenTools.defaultFontPixelHeight * 0.35
-                            readonly property real horizontalPadding: ScreenTools.defaultFontPixelHeight * 0.32
-                            readonly property real verticalPadding: ScreenTools.defaultFontPixelHeight * 0.32
-                            width: Math.min(hudLayer.width * 0.34, recStatPopupText.implicitWidth + horizontalPadding * 2)
-                            height: recStatPopupText.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.95
+                            id: recStatusPopup
+                            z: 21
+                            visible: cameraStorageBadge.recStatusPopupVisible
+                            x: recStatusBackground.x - width - ScreenTools.defaultFontPixelWidth * 0.6
+                            y: recStatusBackground.y + (recStatusBackground.height - height) / 2
+                            readonly property real horizontalPadding: ScreenTools.defaultFontPixelHeight * 0.38
+                            readonly property real verticalPadding: ScreenTools.defaultFontPixelHeight * 0.3
+                            width: Math.min(hudLayer.width * 0.34, recStatusPopupText.implicitWidth + horizontalPadding * 2)
+                            height: recStatusPopupText.implicitHeight + verticalPadding * 2
                             radius: ScreenTools.defaultFontPixelHeight * 0.45
                             color: Qt.rgba(0, 0, 0, 0.58)
                             border.width: 1
-                            border.color: mainWindow.recStatColor(recStatBadge.recStatValue)
+                            border.color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
 
                             QGCLabel {
-                                id: recStatPopupText
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.topMargin: recStatPopup.verticalPadding
-                                anchors.rightMargin: recStatPopup.horizontalPadding
-                                width: parent.width - recStatPopup.horizontalPadding * 2
-                                text: mainWindow.recStatDisplayText(recStatBadge.recStatValue)
+                                id: recStatusPopupText
+                                anchors.centerIn: parent
+                                width: parent.width - recStatusPopup.horizontalPadding * 2
+                                text: recStatDisplayText(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
                                 color: qgcPal.text
-                                font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.86
+                                font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.82
                                 font.bold: true
                                 wrapMode: Text.WrapAnywhere
                                 horizontalAlignment: Text.AlignRight
@@ -612,19 +755,9 @@ ApplicationWindow {
                     MouseArea {
                         anchors.fill: parent
                         z: 19
-                        visible: recStatBadge.popupVisible
+                        visible: cameraStorageBadge.visible && cameraStorageBadge.recStatusPopupVisible
                         enabled: visible
-                        onClicked: recStatBadge.popupVisible = false
-                    }
-
-                    PhotoVideoControl {
-                        id: photoVideoControl
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: ScreenTools.defaultFontPixelHeight * 1.5
-                        scale: 0.9
-                        transformOrigin: Item.TopRight
-                        visible: globals.activeVehicle && globals.activeVehicle.cameraManager
+                        onClicked: cameraStorageBadge.recStatusPopupVisible = false
                     }
 
                     // ToF distance
