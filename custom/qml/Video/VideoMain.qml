@@ -22,6 +22,100 @@ Item {
         receiver: root.receiver
     }
 
+    Item {
+        id: crosshairOverlay
+        anchors.centerIn: parent
+        width: ScreenTools.defaultFontPixelHeight * 2.7
+        height: width
+        visible: root._streaming
+
+        readonly property real _armThickness: Math.max(2, ScreenTools.defaultFontPixelWidth * 0.28)
+        readonly property real _armLength: width * 0.36
+        readonly property real _centerGap: width * 0.14
+        readonly property color _strokeColor: "#f7f7f7"
+        readonly property color _shadowColor: "#66000000"
+
+        Rectangle {
+            width: parent._armLength
+            height: parent._armThickness
+            radius: height / 2
+            color: parent._shadowColor
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.horizontalCenter
+            anchors.rightMargin: parent._centerGap / 2 - 1
+            anchors.verticalCenterOffset: 1
+        }
+        Rectangle {
+            width: parent._armLength
+            height: parent._armThickness
+            radius: height / 2
+            color: parent._strokeColor
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.horizontalCenter
+            anchors.rightMargin: parent._centerGap / 2
+        }
+
+        Rectangle {
+            width: parent._armLength
+            height: parent._armThickness
+            radius: height / 2
+            color: parent._shadowColor
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.horizontalCenter
+            anchors.leftMargin: parent._centerGap / 2 + 1
+            anchors.verticalCenterOffset: 1
+        }
+        Rectangle {
+            width: parent._armLength
+            height: parent._armThickness
+            radius: height / 2
+            color: parent._strokeColor
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.horizontalCenter
+            anchors.leftMargin: parent._centerGap / 2
+        }
+
+        Rectangle {
+            width: parent._armThickness
+            height: parent._armLength
+            radius: width / 2
+            color: parent._shadowColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.verticalCenter
+            anchors.bottomMargin: parent._centerGap / 2 - 1
+            anchors.horizontalCenterOffset: 1
+        }
+        Rectangle {
+            width: parent._armThickness
+            height: parent._armLength
+            radius: width / 2
+            color: parent._strokeColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.verticalCenter
+            anchors.bottomMargin: parent._centerGap / 2
+        }
+
+        Rectangle {
+            width: parent._armThickness
+            height: parent._armLength
+            radius: width / 2
+            color: parent._shadowColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.verticalCenter
+            anchors.topMargin: parent._centerGap / 2 + 1
+            anchors.horizontalCenterOffset: 1
+        }
+        Rectangle {
+            width: parent._armThickness
+            height: parent._armLength
+            radius: width / 2
+            color: parent._strokeColor
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.verticalCenter
+            anchors.topMargin: parent._centerGap / 2
+        }
+    }
+
     // 映像が未受信時の待機メッセージ（やや上寄せ）
     Column {
         anchors.horizontalCenter: parent.horizontalCenter
