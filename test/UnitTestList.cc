@@ -103,6 +103,7 @@
 // #include "RequestMessageTest.h"
 // #include "SendMavCommandWithHandlerTest.h"
 // #include "SendMavCommandWithSignalingTest.h"
+#include "VehicleJoystickManualControlTest.h"
 #include "VehicleLinkManagerTest.h"
 
 // Missing
@@ -205,6 +206,7 @@ int runTests(bool stress, QStringView unitTestOptions)
     // UT_REGISTER_TEST(RequestMessageTest)
     // UT_REGISTER_TEST(SendMavCommandWithHandlerTest)
     // UT_REGISTER_TEST(SendMavCommandWithSignalingTest)
+    UT_REGISTER_TEST(VehicleJoystickManualControlTest)
     UT_REGISTER_TEST(VehicleLinkManagerTest)
 
     // Missing

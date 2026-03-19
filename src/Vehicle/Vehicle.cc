@@ -4125,7 +4125,7 @@ void Vehicle::clearAllParamMapRC(void)
     }
 }
 
-void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons, int aux1, int aux2, uint8_t enabledExtensions)
+void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, float thrust, quint16 buttons, float aux1, float aux2, uint8_t enabledExtensions)
 {
     SharedLinkInterfacePtr sharedLink = vehicleLinkManager()->primaryLink().lock();
     if (!sharedLink) {
@@ -4145,10 +4145,8 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
     float newPitchCommand  =    pitch * axesScaling;    // Joystick data is reverse of mavlink values
     float newYawCommand    =    yaw * axesScaling;
     float newThrustCommand =    thrust * axesScaling;
-    auto mapAuxToManualControl = [](int rawAux) {
-        constexpr double rawAuxMax = 32000.0;
-        constexpr double manualControlAuxMax = 1000.0;
-        const int scaledAux = qRound((static_cast<double>(rawAux) * manualControlAuxMax) / rawAuxMax);
+    auto mapAuxToManualControl = [axesScaling](float normalizedAux) {
+        const int scaledAux = qRound(normalizedAux * axesScaling);
         return static_cast<int16_t>(qBound(-1000, scaledAux, 1000));
     };
     const int16_t newAux1Command = mapAuxToManualControl(aux1);

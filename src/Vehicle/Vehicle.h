@@ -446,7 +446,7 @@ public:
 
     bool joystickEnabled            () const;
     void setJoystickEnabled         (bool enabled);
-    void sendJoystickDataThreadSafe (float roll, float pitch, float yaw, float thrust, quint16 buttons, int aux1 = 0, int aux2 = 0, uint8_t enabledExtensions = 0);
+    void sendJoystickDataThreadSafe (float roll, float pitch, float yaw, float thrust, quint16 buttons, float aux1 = 0.0f, float aux2 = 0.0f, uint8_t enabledExtensions = 0);
 
     // Property accesors
     int id() const{ return _id; }

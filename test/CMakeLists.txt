@@ -127,6 +127,7 @@ add_qgc_test(MAVLinkLogManagerTest)
 # add_qgc_test(RequestMessageTest)
 # add_qgc_test(SendMavCommandWithHandlerTest)
 # add_qgc_test(SendMavCommandWithSignalingTest)
+add_qgc_test(VehicleJoystickManualControlTest)
 add_qgc_test(VehicleLinkManagerTest)
 
 # add_qgc_test(FlightGearUnitTest)

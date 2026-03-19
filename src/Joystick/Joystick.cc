@@ -666,14 +666,14 @@ void Joystick::_handleAxis()
         aux2Axis = (_axisCount > 5) ? _rgFunctionAxis[gimbalYawFunction]   : -1;
     }
 
-    float gimbalPitch = 0.0f;
+    float aux1Normalized = 0.0f;
     if (aux1Axis >= 0) {
-        gimbalPitch = _adjustRange(_rgAxisValues[aux1Axis], _rgCalibration[aux1Axis], _deadband);
+        aux1Normalized = _adjustRange(_rgAxisValues[aux1Axis], _rgCalibration[aux1Axis], _deadband);
     }
 
-    float gimbalYaw = 0.0f;
+    float aux2Normalized = 0.0f;
     if (aux2Axis >= 0) {
-        gimbalYaw = _adjustRange(_rgAxisValues[aux2Axis], _rgCalibration[aux2Axis], _deadband);
+        aux2Normalized = _adjustRange(_rgAxisValues[aux2Axis], _rgCalibration[aux2Axis], _deadband);
     }
 
     const int rawAux1 = (aux1Axis >= 0) ? _rgAxisValues[aux1Axis] : 0;
@@ -717,7 +717,10 @@ void Joystick::_handleAxis()
         throttle = (throttle + 1.0f) / 2.0f;
     }
 
-    qCDebug(JoystickValuesLog) << "name:roll:pitch:yaw:throttle:gimbalPitch:gimbalYaw:rawAux1:rawAux2" << name() << roll << -pitch << yaw << throttle << gimbalPitch << gimbalYaw << rawAux1 << rawAux2;
+    qCDebug(JoystickValuesLog) << "name:roll:pitch:yaw:throttle:aux1Normalized:aux2Normalized:rawAux1:rawAux2"
+                               << name() << roll << -pitch << yaw << throttle
+                               << aux1Normalized << aux2Normalized
+                               << rawAux1 << rawAux2;
 
     // NOTE: The buttonPressedBits going to MANUAL_CONTROL are currently used by ArduSub (and it only handles 16 bits)
     // Set up button bitmap
@@ -741,7 +744,7 @@ void Joystick::_handleAxis()
         enabledExtensions |= (1 << 3); // aux2
     }
 
-    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons, rawAux1, rawAux2, enabledExtensions);
+    _activeVehicle->sendJoystickDataThreadSafe(roll, pitch, yaw, throttle, shortButtons, aux1Normalized, aux2Normalized, enabledExtensions);
 }
 
 void Joystick::startPolling(Vehicle* vehicle)
