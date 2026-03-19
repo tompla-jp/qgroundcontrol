@@ -371,6 +371,10 @@ void Vehicle::_commonInit()
     _recStatTelemetryTimer.setSingleShot(true);
     connect(&_recStatTelemetryTimer, &QTimer::timeout, this, &Vehicle::_recStatTelemetryTimeout);
 
+    _cpuTempTelemetryTimer.setInterval(_cpuTempTelemetryTimeoutMsecs);
+    _cpuTempTelemetryTimer.setSingleShot(true);
+    connect(&_cpuTempTelemetryTimer, &QTimer::timeout, this, &Vehicle::_cpuTempTelemetryTimeout);
+
     // Set video stream to udp if running ArduSub and Video is disabled
     if (sub() && SettingsManager::instance()->videoSettings()->videoSource()->rawValue() == VideoSettings::videoDisabled) {
         SettingsManager::instance()->videoSettings()->videoSource()->setRawValue(VideoSettings::videoSourceUDPH264);
@@ -853,6 +857,16 @@ void Vehicle::_handleNamedValueFloat(LinkInterface *link, const mavlink_message_
         return;
     }
 
+    if (name == QStringLiteral("CPU_TEMP")) {
+        if (!std::isfinite(pkt.value)) {
+            return;
+        }
+
+        _setCpuTempCelsius(pkt.value);
+        _cpuTempTelemetryTimer.start(_cpuTempTelemetryTimeoutMsecs);
+        return;
+    }
+
     if (name == QStringLiteral("QVIO_QUAL")) {
         if (auto customApp = qgcApp()->customApplication()) {
             if (auto handler = customApp->qvioHandler()) {
@@ -873,6 +887,16 @@ void Vehicle::_recStatTelemetryTimeout()
     _setRecStatValue(0);
 }
 
+void Vehicle::_cpuTempTelemetryTimeout()
+{
+    if (!_cpuTempAvailable) {
+        return;
+    }
+
+    _cpuTempAvailable = false;
+    emit cpuTempChanged();
+}
+
 void Vehicle::_setRecStatValue(int recStatValue)
 {
     if (_recStatValue == recStatValue) {
@@ -881,6 +905,19 @@ void Vehicle::_setRecStatValue(int recStatValue)
 
     _recStatValue = recStatValue;
     emit recStatChanged();
+}
+
+void Vehicle::_setCpuTempCelsius(float cpuTempCelsius)
+{
+    const bool availabilityChanged = !_cpuTempAvailable;
+    const bool valueChanged = !_cpuTempAvailable || !qFuzzyCompare(_cpuTempCelsius + 1.0f, cpuTempCelsius + 1.0f);
+
+    _cpuTempCelsius = cpuTempCelsius;
+    _cpuTempAvailable = true;
+
+    if (availabilityChanged || valueChanged) {
+        emit cpuTempChanged();
+    }
 }
 
 QString Vehicle::_recStatInternalStateForValue(int recStatValue) const

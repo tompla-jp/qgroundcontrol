@@ -583,6 +583,29 @@ ApplicationWindow {
                         visible: !!mainWindow.activeVehicle
                     }
 
+                    Rectangle {
+                        id: cpuTempBadge
+                        anchors.left: attitudeIndicator.right
+                        anchors.verticalCenter: attitudeIndicator.verticalCenter
+                        anchors.verticalCenterOffset: Screen.pixelDensity * 6
+                        anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 1.3
+                        visible: !!mainWindow.activeVehicle && mainWindow.activeVehicle.cpuTempAvailable
+                        radius: ScreenTools.defaultFontPixelHeight * 0.42
+                        color: Qt.rgba(0, 0, 0, 0.42)
+                        border.width: 0
+                        implicitWidth: cpuTempLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.8
+                        implicitHeight: cpuTempLabel.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.7
+
+                        QGCLabel {
+                            id: cpuTempLabel
+                            anchors.centerIn: parent
+                            text: qsTr("CPU: %1°C").arg(mainWindow.activeVehicle ? Number(mainWindow.activeVehicle.cpuTempCelsius).toFixed(1) : "--")
+                            color: qgcPal.text
+                            font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                            font.bold: true
+                        }
+                    }
+
                     // Temporary top-right storage-only badge while camera UI is being rebuilt.
                     Item {
                         id: cameraStorageBadge

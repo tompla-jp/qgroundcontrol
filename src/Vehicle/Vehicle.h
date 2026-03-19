@@ -198,6 +198,8 @@ public:
     Q_PROPERTY(uint                 wifiRSSITimeBootMs          READ wifiRSSITimeBootMs                                             NOTIFY wifiRSSITimeBootMsChanged)
     Q_PROPERTY(int                  recStatValue                READ recStatValue                                                   NOTIFY recStatChanged)
     Q_PROPERTY(QString              recStatInternalState        READ recStatInternalState                                           NOTIFY recStatChanged)
+    Q_PROPERTY(float                cpuTempCelsius              READ cpuTempCelsius                                                 NOTIFY cpuTempChanged)
+    Q_PROPERTY(bool                 cpuTempAvailable            READ cpuTempAvailable                                               NOTIFY cpuTempChanged)
     Q_PROPERTY(unsigned int         telemetryRXErrors           READ telemetryRXErrors                                              NOTIFY telemetryRXErrorsChanged)
     Q_PROPERTY(unsigned int         telemetryFixed              READ telemetryFixed                                                 NOTIFY telemetryFixedChanged)
     Q_PROPERTY(unsigned int         telemetryTXBuffer           READ telemetryTXBuffer                                              NOTIFY telemetryTXBufferChanged)
@@ -572,6 +574,8 @@ public:
     uint            wifiRSSITimeBootMs          () const{ return _wifiRSSITimeBootMs; }
     int             recStatValue                () const{ return _recStatValue; }
     QString         recStatInternalState        () const;
+    float           cpuTempCelsius              () const{ return _cpuTempCelsius; }
+    bool            cpuTempAvailable            () const{ return _cpuTempAvailable; }
     unsigned int    telemetryRXErrors           () const{ return _telemetryRXErrors; }
     unsigned int    telemetryFixed              () const{ return _telemetryFixed; }
     unsigned int    telemetryTXBuffer           () const{ return _telemetryTXBuffer; }
@@ -869,6 +873,7 @@ signals:
     void wifiRSSIChanged               (float value);
     void wifiRSSITimeBootMsChanged     (uint value);
     void recStatChanged                ();
+    void cpuTempChanged                ();
     void telemetryRXErrorsChanged       (unsigned int value);
     void telemetryFixedChanged          (unsigned int value);
     void telemetryTXBufferChanged       (unsigned int value);
@@ -1068,6 +1073,10 @@ private:
     int             _recStatValue = 0;
     QTimer          _recStatTelemetryTimer;
     static const int _recStatTelemetryTimeoutMsecs = 3000;
+    float           _cpuTempCelsius = 0.f;
+    bool            _cpuTempAvailable = false;
+    QTimer          _cpuTempTelemetryTimer;
+    static const int _cpuTempTelemetryTimeoutMsecs = 3000;
     uint32_t        _telemetryRXErrors = 0;
     uint32_t        _telemetryFixed = 0;
     uint32_t        _telemetryTXBuffer = 0;
@@ -1336,6 +1345,8 @@ private:
     void _recStatTelemetryTimeout();
     void _setRecStatValue(int recStatValue);
     QString _recStatInternalStateForValue(int recStatValue) const;
+    void _cpuTempTelemetryTimeout();
+    void _setCpuTempCelsius(float cpuTempCelsius);
 
     static void _requestMessageMessageIntervalResultHandler(void* resultHandlerData, MAV_RESULT result, RequestMessageResultHandlerFailureCode_t failureCode, const mavlink_message_t& message);
     void _requestMessageInterval(uint8_t compId, uint16_t msgId);
