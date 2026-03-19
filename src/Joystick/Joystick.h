@@ -82,6 +82,9 @@ class Joystick : public QThread
     Q_PROPERTY(QString                  name                    READ    name                                                CONSTANT)
     Q_PROPERTY(QStringList              assignableActionTitles  READ    assignableActionTitles                              NOTIFY assignableActionsChanged)
     Q_PROPERTY(QStringList              buttonActions           READ    buttonActions                                       NOTIFY buttonActionsChanged)
+    Q_PROPERTY(int                      debugRawAux2            READ    debugRawAux2                                       NOTIFY debugAuxValuesChanged)
+    Q_PROPERTY(float                    debugAux2Normalized     READ    debugAux2Normalized                                NOTIFY debugAuxValuesChanged)
+    Q_PROPERTY(int                      debugManualControlAux2  READ    debugManualControlAux2                             NOTIFY debugAuxValuesChanged)
 
     enum ButtonEvent_t {
         BUTTON_UP,
@@ -129,6 +132,9 @@ public:
     const QmlObjectListModel *assignableActions() const { return _assignableButtonActions; }
     QStringList assignableActionTitles() const { return _availableActionTitles; }
     QString disabledActionName() const { return _buttonActionNone; }
+    int debugRawAux2() const { return _debugRawAux2; }
+    float debugAux2Normalized() const { return _debugAux2Normalized; }
+    int debugManualControlAux2() const { return _debugManualControlAux2; }
 
     void stop();
 
@@ -223,6 +229,7 @@ signals:
     void landingGearRetract();
     void motorInterlock(bool enable);
     void unknownAction(const QString &action);
+    void debugAuxValuesChanged();
 
 protected:
     void _setDefaultCalibration();
@@ -254,6 +261,7 @@ private:
 
     /// Adjust the raw axis value to the -1:1 range given calibration information
     float _adjustRange(int value, const Calibration_t &calibration, bool withDeadbands);
+    float _normalizeRawAxis(int value) const;
     void _executeButtonAction(const QString &action, bool buttonDown);
     int  _findAssignableButtonAction(const QString &action);
     bool _validAxis(int axis) const;
@@ -292,6 +300,9 @@ private:
     QElapsedTimer _axisTime;
     QList<AssignedButtonAction*> _buttonActionArray;
     QStringList _availableActionTitles;
+    int _debugRawAux2 = 0;
+    float _debugAux2Normalized = 0.0f;
+    int _debugManualControlAux2 = 0;
     std::atomic<bool> _exitThread = false;    ///< true: signal thread to exit
     ThrottleMode_t _throttleMode = ThrottleModeDownZero;
     Vehicle *_activeVehicle = nullptr;

@@ -485,6 +485,13 @@ float Joystick::_adjustRange(int value, const Calibration_t &calibration, bool w
     return std::max(-1.0f, std::min(correctedValue, 1.0f));
 }
 
+float Joystick::_normalizeRawAxis(int value) const
+{
+    constexpr float rawAxisMax = 32767.0f;
+    const float normalized = static_cast<float>(value) / rawAxisMax;
+    return std::max(-1.0f, std::min(normalized, 1.0f));
+}
+
 void Joystick::run()
 {
     _open();
@@ -666,18 +673,32 @@ void Joystick::_handleAxis()
         aux2Axis = (_axisCount > 5) ? _rgFunctionAxis[gimbalYawFunction]   : -1;
     }
 
+    const int rawAux1 = (aux1Axis >= 0) ? _rgAxisValues[aux1Axis] : 0;
+    const int rawAux2 = (aux2Axis >= 0) ? _rgAxisValues[aux2Axis] : 0;
     float aux1Normalized = 0.0f;
     if (aux1Axis >= 0) {
-        aux1Normalized = _adjustRange(_rgAxisValues[aux1Axis], _rgCalibration[aux1Axis], _deadband);
+        aux1Normalized = useG4AuxAxes
+            ? _normalizeRawAxis(rawAux1)
+            : _adjustRange(rawAux1, _rgCalibration[aux1Axis], _deadband);
     }
 
     float aux2Normalized = 0.0f;
     if (aux2Axis >= 0) {
-        aux2Normalized = _adjustRange(_rgAxisValues[aux2Axis], _rgCalibration[aux2Axis], _deadband);
+        aux2Normalized = useG4AuxAxes
+            ? _normalizeRawAxis(rawAux2)
+            : _adjustRange(rawAux2, _rgCalibration[aux2Axis], _deadband);
     }
 
-    const int rawAux1 = (aux1Axis >= 0) ? _rgAxisValues[aux1Axis] : 0;
-    const int rawAux2 = (aux2Axis >= 0) ? _rgAxisValues[aux2Axis] : 0;
+    const int manualControlAux2 = qBound(-1000, qRound(aux2Normalized * 1000.0f), 1000);
+
+    if ((_debugRawAux2 != rawAux2)
+        || (_debugManualControlAux2 != manualControlAux2)
+        || !qFuzzyCompare(_debugAux2Normalized + 1.0f, aux2Normalized + 1.0f)) {
+        _debugRawAux2 = rawAux2;
+        _debugAux2Normalized = aux2Normalized;
+        _debugManualControlAux2 = manualControlAux2;
+        emit debugAuxValuesChanged();
+    }
 
     if (_accumulator) {
         static float throttle_accu = 0.f;

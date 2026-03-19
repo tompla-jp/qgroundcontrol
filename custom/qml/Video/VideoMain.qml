@@ -10,6 +10,7 @@ Item {
     property string label: ""
     property var receiver: null
     property alias surfaceItem: videoSurface
+    readonly property var _activeJoystick: typeof joystickManager !== "undefined" ? joystickManager.activeJoystick : null
     readonly property bool _hasHandler: typeof videoHandler !== "undefined" && videoHandler !== null
     readonly property bool _displaySwapped: _hasHandler ? videoHandler.displaySwapped : false
     readonly property bool _streaming: _hasHandler ? (_displaySwapped ? videoHandler.subStreaming : videoHandler.mainStreaming) : false
@@ -113,6 +114,49 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.verticalCenter
             anchors.topMargin: parent._centerGap / 2
+        }
+    }
+
+    Rectangle {
+        id: auxDebugOverlay
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: ScreenTools.defaultFontPixelHeight * 4.2
+        visible: root._activeJoystick !== null
+        radius: ScreenTools.defaultFontPixelHeight * 0.45
+        color: "#0f1218d9"
+        border.width: 1
+        border.color: "#55ffffff"
+        opacity: 0.96
+
+        implicitWidth: auxDebugColumn.implicitWidth + ScreenTools.defaultFontPixelWidth * 2.2
+        implicitHeight: auxDebugColumn.implicitHeight + ScreenTools.defaultFontPixelHeight * 1.2
+
+        Column {
+            id: auxDebugColumn
+            anchors.centerIn: parent
+            spacing: ScreenTools.defaultFontPixelHeight * 0.28
+
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("rawAux2: %1").arg(root._activeJoystick ? root._activeJoystick.debugRawAux2 : 0)
+                color: "#f7f7f7"
+                font.pointSize: ScreenTools.defaultFontPointSize * 0.95
+            }
+
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("aux2Normalized: %1").arg(root._activeJoystick ? Number(root._activeJoystick.debugAux2Normalized).toFixed(3) : "0.000")
+                color: "#8fd3ff"
+                font.pointSize: ScreenTools.defaultFontPointSize * 0.95
+            }
+
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("MANUAL_CONTROL.aux2: %1").arg(root._activeJoystick ? root._activeJoystick.debugManualControlAux2 : 0)
+                color: "#9cff9c"
+                font.pointSize: ScreenTools.defaultFontPointSize * 0.95
+            }
         }
     }
 
