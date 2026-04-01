@@ -850,7 +850,7 @@ void Vehicle::_handleNamedValueFloat(LinkInterface *link, const mavlink_message_
         const bool validValue = std::isfinite(pkt.value)
             && (std::fabs(pkt.value - static_cast<float>(roundedValue)) <= 0.001f)
             && (roundedValue >= 0)
-            && (roundedValue <= 8);
+            && (roundedValue <= 10);
 
         if (validValue) {
             recStatValue = roundedValue;
@@ -985,6 +985,10 @@ QString Vehicle::_recStatInternalStateForValue(int recStatValue) const
         return QStringLiteral("blocked_storage_check_failed");
     case 8:
         return QStringLiteral("stopped");
+    case 9:
+        return QStringLiteral("arm_command_detected");
+    case 10:
+        return QStringLiteral("kill_command_detected");
     case 0:
     default:
         return QStringLiteral("unknown");

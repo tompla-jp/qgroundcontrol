@@ -105,6 +105,8 @@ ApplicationWindow {
             return "#ff4d4f"
         case 1:
         case 2:
+        case 9:
+        case 10:
             return "#f5c542"
         case 3:
         case 4:
@@ -136,6 +138,10 @@ ApplicationWindow {
             return qsTr("ストレージ確認に失敗しました")
         case 8:
             return qsTr("ソフトウェアが停止しています")
+        case 9:
+            return qsTr("録画準備処理中です")
+        case 10:
+            return qsTr("録画停止処理中です")
         case 0:
         default:
             return qsTr("録画状態がわかりません")
@@ -147,6 +153,10 @@ ApplicationWindow {
             return qsTr("録画可能")
         case 5:
             return qsTr("録画中")
+        case 9:
+            return qsTr("録画準備中")
+        case 10:
+            return qsTr("録画停止中")
         case 6:
         case 7:
         case 8:
@@ -163,6 +173,9 @@ ApplicationWindow {
     }
     function recStatCompactColor(recStatValue) {
         switch (recStatValue) {
+        case 9:
+        case 10:
+            return "#f5c542"
         case 3:
         case 4:
             return "#3bc46b"
@@ -185,6 +198,10 @@ ApplicationWindow {
             return qsTr("録画可能")
         case 5:
             return qsTr("録画中")
+        case 9:
+            return qsTr("録画準備中")
+        case 10:
+            return qsTr("録画停止中")
         case 0:
         case 1:
         case 2:
