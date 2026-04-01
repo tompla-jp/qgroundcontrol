@@ -15,8 +15,8 @@ Item {
     property real size
     property bool showHeading:  false
 
-    // Pilot-facing custom HUD uses the opposite roll direction from the stock widget.
-    property real _rollAngle:   vehicle ? -vehicle.roll.rawValue : 0
+    // Keep roll direction aligned with the stock widget so the horizon matches vehicle motion.
+    property real _rollAngle:   vehicle ? vehicle.roll.rawValue : 0
     property real _pitchAngle:  vehicle ? vehicle.pitch.rawValue : 0
 
     width:  size

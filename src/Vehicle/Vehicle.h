@@ -198,6 +198,8 @@ public:
     Q_PROPERTY(uint                 wifiRSSITimeBootMs          READ wifiRSSITimeBootMs                                             NOTIFY wifiRSSITimeBootMsChanged)
     Q_PROPERTY(int                  recStatValue                READ recStatValue                                                   NOTIFY recStatChanged)
     Q_PROPERTY(QString              recStatInternalState        READ recStatInternalState                                           NOTIFY recStatChanged)
+    Q_PROPERTY(int                  recStatRecordingElapsedSeconds READ recStatRecordingElapsedSeconds                                NOTIFY recStatRecordingElapsedChanged)
+    Q_PROPERTY(QString              recStatRecordingElapsedText READ recStatRecordingElapsedText                                    NOTIFY recStatRecordingElapsedChanged)
     Q_PROPERTY(float                cpuTempCelsius              READ cpuTempCelsius                                                 NOTIFY cpuTempChanged)
     Q_PROPERTY(bool                 cpuTempAvailable            READ cpuTempAvailable                                               NOTIFY cpuTempChanged)
     Q_PROPERTY(unsigned int         telemetryRXErrors           READ telemetryRXErrors                                              NOTIFY telemetryRXErrorsChanged)
@@ -574,6 +576,8 @@ public:
     uint            wifiRSSITimeBootMs          () const{ return _wifiRSSITimeBootMs; }
     int             recStatValue                () const{ return _recStatValue; }
     QString         recStatInternalState        () const;
+    int             recStatRecordingElapsedSeconds() const{ return _recStatRecordingElapsedSeconds; }
+    QString         recStatRecordingElapsedText () const;
     float           cpuTempCelsius              () const{ return _cpuTempCelsius; }
     bool            cpuTempAvailable            () const{ return _cpuTempAvailable; }
     unsigned int    telemetryRXErrors           () const{ return _telemetryRXErrors; }
@@ -873,6 +877,7 @@ signals:
     void wifiRSSIChanged               (float value);
     void wifiRSSITimeBootMsChanged     (uint value);
     void recStatChanged                ();
+    void recStatRecordingElapsedChanged();
     void cpuTempChanged                ();
     void telemetryRXErrorsChanged       (unsigned int value);
     void telemetryFixedChanged          (unsigned int value);
@@ -1073,6 +1078,9 @@ private:
     int             _recStatValue = 0;
     QTimer          _recStatTelemetryTimer;
     static const int _recStatTelemetryTimeoutMsecs = 3000;
+    int             _recStatRecordingElapsedSeconds = 0;
+    QElapsedTimer   _recStatRecordingElapsedTimer;
+    QTimer          _recStatRecordingElapsedUpdateTimer;
     float           _cpuTempCelsius = 0.f;
     bool            _cpuTempAvailable = false;
     QTimer          _cpuTempTelemetryTimer;
@@ -1345,6 +1353,8 @@ private:
     void _recStatTelemetryTimeout();
     void _setRecStatValue(int recStatValue);
     QString _recStatInternalStateForValue(int recStatValue) const;
+    void _updateRecStatRecordingElapsed();
+    void _setRecStatRecordingElapsedSeconds(int elapsedSeconds);
     void _cpuTempTelemetryTimeout();
     void _setCpuTempCelsius(float cpuTempCelsius);
 

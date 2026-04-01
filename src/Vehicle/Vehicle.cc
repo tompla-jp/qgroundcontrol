@@ -371,6 +371,10 @@ void Vehicle::_commonInit()
     _recStatTelemetryTimer.setSingleShot(true);
     connect(&_recStatTelemetryTimer, &QTimer::timeout, this, &Vehicle::_recStatTelemetryTimeout);
 
+    _recStatRecordingElapsedUpdateTimer.setInterval(1000);
+    _recStatRecordingElapsedUpdateTimer.setSingleShot(false);
+    connect(&_recStatRecordingElapsedUpdateTimer, &QTimer::timeout, this, &Vehicle::_updateRecStatRecordingElapsed);
+
     _cpuTempTelemetryTimer.setInterval(_cpuTempTelemetryTimeoutMsecs);
     _cpuTempTelemetryTimer.setSingleShot(true);
     connect(&_cpuTempTelemetryTimer, &QTimer::timeout, this, &Vehicle::_cpuTempTelemetryTimeout);
@@ -882,6 +886,15 @@ QString Vehicle::recStatInternalState() const
     return _recStatInternalStateForValue(_recStatValue);
 }
 
+QString Vehicle::recStatRecordingElapsedText() const
+{
+    if ((_recStatValue != 5) || !_recStatRecordingElapsedTimer.isValid()) {
+        return QString();
+    }
+
+    return QTime(0, 0).addSecs(_recStatRecordingElapsedSeconds).toString(QStringLiteral("hh:mm:ss"));
+}
+
 void Vehicle::_recStatTelemetryTimeout()
 {
     _setRecStatValue(0);
@@ -903,8 +916,21 @@ void Vehicle::_setRecStatValue(int recStatValue)
         return;
     }
 
+    const bool wasRecording = (_recStatValue == 5);
+    const bool isRecording = (recStatValue == 5);
+
     _recStatValue = recStatValue;
     emit recStatChanged();
+
+    if (!wasRecording && isRecording) {
+        _recStatRecordingElapsedTimer.restart();
+        _setRecStatRecordingElapsedSeconds(0);
+        _recStatRecordingElapsedUpdateTimer.start();
+    } else if (wasRecording && !isRecording) {
+        _recStatRecordingElapsedUpdateTimer.stop();
+        _recStatRecordingElapsedTimer.invalidate();
+        _setRecStatRecordingElapsedSeconds(0);
+    }
 }
 
 void Vehicle::_setCpuTempCelsius(float cpuTempCelsius)
@@ -918,6 +944,26 @@ void Vehicle::_setCpuTempCelsius(float cpuTempCelsius)
     if (availabilityChanged || valueChanged) {
         emit cpuTempChanged();
     }
+}
+
+void Vehicle::_updateRecStatRecordingElapsed()
+{
+    if ((_recStatValue != 5) || !_recStatRecordingElapsedTimer.isValid()) {
+        _recStatRecordingElapsedUpdateTimer.stop();
+        return;
+    }
+
+    _setRecStatRecordingElapsedSeconds(_recStatRecordingElapsedTimer.elapsed() / 1000);
+}
+
+void Vehicle::_setRecStatRecordingElapsedSeconds(int elapsedSeconds)
+{
+    if (_recStatRecordingElapsedSeconds == elapsedSeconds) {
+        return;
+    }
+
+    _recStatRecordingElapsedSeconds = elapsedSeconds;
+    emit recStatRecordingElapsedChanged();
 }
 
 QString Vehicle::_recStatInternalStateForValue(int recStatValue) const

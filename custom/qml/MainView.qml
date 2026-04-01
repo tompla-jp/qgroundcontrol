@@ -593,16 +593,29 @@ ApplicationWindow {
                         radius: ScreenTools.defaultFontPixelHeight * 0.42
                         color: Qt.rgba(0, 0, 0, 0.42)
                         border.width: 0
-                        implicitWidth: cpuTempLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.8
-                        implicitHeight: cpuTempLabel.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.7
+                        implicitWidth: cpuTempColumn.implicitWidth + ScreenTools.defaultFontPixelWidth * 1.8
+                        implicitHeight: cpuTempColumn.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.7
 
-                        QGCLabel {
-                            id: cpuTempLabel
+                        Column {
+                            id: cpuTempColumn
                             anchors.centerIn: parent
-                            text: qsTr("CPU: %1°C").arg(mainWindow.activeVehicle ? Number(mainWindow.activeVehicle.cpuTempCelsius).toFixed(1) : "--")
-                            color: qgcPal.text
-                            font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
-                            font.bold: true
+                            spacing: ScreenTools.defaultFontPixelHeight * 0.08
+
+                            QGCLabel {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: qsTr("CPU:")
+                                color: qgcPal.text
+                                font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.62
+                                font.bold: true
+                            }
+
+                            QGCLabel {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: qsTr("%1°C").arg(mainWindow.activeVehicle ? Number(mainWindow.activeVehicle.cpuTempCelsius).toFixed(1) : "--")
+                                color: qgcPal.text
+                                font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                                font.bold: true
+                            }
                         }
                     }
 
@@ -666,28 +679,45 @@ ApplicationWindow {
                                 color: Qt.rgba(0, 0, 0, 0.42)
                                 border.width: 1
                                 border.color: Qt.rgba(255, 255, 255, 0.28)
-                                implicitHeight: recStatusRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
+                                readonly property bool isRecording: !!cameraStorageBadge.activeVehicle && cameraStorageBadge.activeVehicle.recStatValue === 5
+                                implicitHeight: recStatusColumn.implicitHeight + ScreenTools.defaultFontPixelHeight * 0.55
 
-                                Row {
-                                    id: recStatusRow
+                                Column {
+                                    id: recStatusColumn
                                     anchors.centerIn: parent
-                                    spacing: ScreenTools.defaultFontPixelWidth * 0.45
+                                    spacing: ScreenTools.defaultFontPixelHeight * 0.12
 
-                                    QGCColoredImage {
-                                        id: recStatusIcon
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: ScreenTools.defaultFontPixelHeight * 0.95
-                                        height: width
-                                        source: "/qmlimages/camera_video.svg"
-                                        color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                    Row {
+                                        id: recStatusRow
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        spacing: ScreenTools.defaultFontPixelWidth * 0.45
+
+                                        QGCColoredImage {
+                                            id: recStatusIcon
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: ScreenTools.defaultFontPixelHeight * 0.95
+                                            height: width
+                                            source: "/qmlimages/camera_video.svg"
+                                            color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                        }
+
+                                        QGCLabel {
+                                            id: recStatusLabel
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: recStatCompactText(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                            color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
+                                            font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                                            font.bold: true
+                                        }
                                     }
 
                                     QGCLabel {
-                                        id: recStatusLabel
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: recStatCompactText(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
-                                        color: recStatCompactColor(cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatValue : 0)
-                                        font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.72
+                                        id: recStatusElapsedLabel
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        visible: recStatusBackground.isRecording
+                                        text: cameraStorageBadge.activeVehicle ? cameraStorageBadge.activeVehicle.recStatRecordingElapsedText : ""
+                                        color: "#ff4d4f"
+                                        font.pixelSize: ScreenTools.defaultFontPixelHeight * 0.64
                                         font.bold: true
                                     }
                                 }
@@ -736,6 +766,8 @@ ApplicationWindow {
                                     Rectangle {
                                         id: shutterButtonOuter
                                         anchors.verticalCenter: parent.verticalCenter
+                                        property bool clickPulseActive: false
+                                        readonly property real innerButtonBaseSize: width * 0.74
                                         width: ScreenTools.defaultFontPixelHeight * 1.95
                                         height: width
                                         radius: width * 0.5
@@ -744,16 +776,43 @@ ApplicationWindow {
                                         border.color: "#ffffff"
 
                                         Rectangle {
+                                            id: shutterButtonInner
                                             anchors.centerIn: parent
-                                            width: parent.width * 0.74
+                                            width: shutterButtonOuter.clickPulseActive ? shutterButtonOuter.innerButtonBaseSize * 0.82 : shutterButtonOuter.innerButtonBaseSize
                                             height: width
                                             radius: width * 0.5
-                                            color: cameraStorageBadge.activeCamera && cameraStorageBadge.activeCamera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IN_PROGRESS ? "#ff4d4f" : "#ffffff"
+                                            color: "#ffffff"
+
+                                            Behavior on width {
+                                                NumberAnimation {
+                                                    duration: shutterButtonOuter.clickPulseActive ? 70 : 150
+                                                    easing.type: shutterButtonOuter.clickPulseActive ? Easing.OutQuad : Easing.OutBack
+                                                }
+                                            }
+
+                                            Behavior on height {
+                                                NumberAnimation {
+                                                    duration: shutterButtonOuter.clickPulseActive ? 70 : 150
+                                                    easing.type: shutterButtonOuter.clickPulseActive ? Easing.OutQuad : Easing.OutBack
+                                                }
+                                            }
+                                        }
+
+                                        Timer {
+                                            id: shutterButtonPulseTimer
+                                            interval: 110
+                                            repeat: false
+                                            onTriggered: shutterButtonOuter.clickPulseActive = false
                                         }
 
                                         MouseArea {
+                                            id: shutterButtonMouseArea
                                             anchors.fill: parent
                                             enabled: !!cameraStorageBadge.activeCamera
+                                            onPressed: {
+                                                shutterButtonOuter.clickPulseActive = true
+                                                shutterButtonPulseTimer.restart()
+                                            }
                                             onClicked: {
                                                 cameraStorageBadge.activeCamera.setCameraModePhoto()
                                                 if (cameraStorageBadge.activeCamera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_INTERVAL_IN_PROGRESS) {
