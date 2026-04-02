@@ -104,6 +104,13 @@ public:
         bool reversed = false;
     };
 
+    struct DialCalibration_t {
+        int min = -32767;
+        int max = 32767;
+        int center = 0;
+        bool calibrated = false;
+    };
+
     enum AxisFunction_t {
         rollFunction,
         pitchFunction,
@@ -124,6 +131,20 @@ public:
     Q_INVOKABLE bool getButtonRepeat(int button);
     Q_INVOKABLE void setButtonAction(int button, const QString &action);
     Q_INVOKABLE QString getButtonAction(int button) const;
+    Q_INVOKABLE bool dialAvailable(int dialIndex) const;
+    Q_INVOKABLE int dialAxis(int dialIndex) const;
+    Q_INVOKABLE int dialCurrentValue(int dialIndex) const;
+    Q_INVOKABLE int dialMin(int dialIndex) const;
+    Q_INVOKABLE int dialMax(int dialIndex) const;
+    Q_INVOKABLE int dialCenter(int dialIndex) const;
+    Q_INVOKABLE float dialNormalizedValue(int dialIndex) const;
+    Q_INVOKABLE void setDialMin(int dialIndex, int value);
+    Q_INVOKABLE void setDialMax(int dialIndex, int value);
+    Q_INVOKABLE void setDialCenter(int dialIndex, int value);
+    Q_INVOKABLE void setDialMinToCurrent(int dialIndex);
+    Q_INVOKABLE void setDialMaxToCurrent(int dialIndex);
+    Q_INVOKABLE void setDialCenterToCurrent(int dialIndex);
+    Q_INVOKABLE void resetDialCalibration(int dialIndex);
 
     QString name() const { return _name; }
     int totalButtonCount() const { return _totalButtonCount; }
@@ -177,7 +198,7 @@ public:
     void setTXMode(int mode);
 
     /// Set the current calibration mode
-    void setCalibrationMode(bool calibrating);
+    Q_INVOKABLE void setCalibrationMode(bool calibrating);
 
     /// Get joystick message rate (in Hz)
     float axisFrequencyHz() const { return _axisFrequencyHz; }
@@ -230,6 +251,7 @@ signals:
     void motorInterlock(bool enable);
     void unknownAction(const QString &action);
     void debugAuxValuesChanged();
+    void dialCalibrationChanged();
 
 protected:
     void _setDefaultCalibration();
@@ -260,11 +282,15 @@ private:
     void _loadSettings();
 
     /// Adjust the raw axis value to the -1:1 range given calibration information
-    float _adjustRange(int value, const Calibration_t &calibration, bool withDeadbands);
+    float _adjustRange(int value, const Calibration_t &calibration, bool withDeadbands) const;
+    float _adjustDialRange(int value, const DialCalibration_t &calibration) const;
     float _normalizeRawAxis(int value) const;
+    float _dialValue(int dialIndex, int rawValue, int axis) const;
     void _executeButtonAction(const QString &action, bool buttonDown);
     int  _findAssignableButtonAction(const QString &action);
     bool _validAxis(int axis) const;
+    bool _validDial(int dialIndex) const;
+    int  _dialAxisForIndex(int dialIndex) const;
     bool _validButton(int button) const;
     void _handleAxis();
     void _handleButtons();
@@ -282,6 +308,7 @@ private:
     int _totalButtonCount = 0;
     int *_rgAxisValues = nullptr;
     Calibration_t *_rgCalibration = nullptr;
+    DialCalibration_t _rgDialCalibration[2];
     uint8_t *_rgButtonValues = nullptr;
     MavlinkActionManager *_mavlinkActionManager = nullptr;
     QmlObjectListModel *_assignableButtonActions = nullptr;
@@ -339,6 +366,10 @@ private:
     static constexpr const char *_circleCorrectionSettingsKey =    "Circle_Correction";
     static constexpr const char *_axisFrequencySettingsKey =       "AxisFrequency";
     static constexpr const char *_buttonFrequencySettingsKey =     "ButtonFrequency";
+    static constexpr const char *_dialMinSettingsKey =             "Dial%1Min";
+    static constexpr const char *_dialMaxSettingsKey =             "Dial%1Max";
+    static constexpr const char *_dialCenterSettingsKey =          "Dial%1Center";
+    static constexpr const char *_dialCalibratedSettingsKey =      "Dial%1Calibrated";
     static constexpr const char *_fixedWingTXModeSettingsKey =     "TXMode_FixedWing";
     static constexpr const char *_multiRotorTXModeSettingsKey =    "TXMode_MultiRotor";
     static constexpr const char *_roverTXModeSettingsKey =         "TXMode_Rover";
@@ -377,4 +408,5 @@ private:
     static constexpr const char *_buttonActionLandingGearRetract=  QT_TR_NOOP("Landing gear retract");
     static constexpr const char *_buttonActionMotorInterlockEnable=   QT_TR_NOOP("Motor Interlock enable");
     static constexpr const char *_buttonActionMotorInterlockDisable=  QT_TR_NOOP("Motor Interlock disable");
+    static constexpr int _dialCount = 2;
 };

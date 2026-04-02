@@ -244,6 +244,34 @@ void Joystick::_loadSettings()
         qCDebug(JoystickLog) << Q_FUNC_INFO << "axis:min:max:trim:reversed:deadband:badsettings" << axis << calibration->min << calibration->max << calibration->center << calibration->reversed << calibration->deadband << badSettings;
     }
 
+    for (int dialIndex = 0; dialIndex < _dialCount; dialIndex++) {
+        DialCalibration_t *const calibration = &_rgDialCalibration[dialIndex];
+        calibration->center = settings.value(QString(_dialCenterSettingsKey).arg(dialIndex), 0).toInt(&convertOk);
+        if (!convertOk) {
+            calibration->center = 0;
+        }
+
+        calibration->min = settings.value(QString(_dialMinSettingsKey).arg(dialIndex), -32767).toInt(&convertOk);
+        if (!convertOk) {
+            calibration->min = -32767;
+        }
+
+        calibration->max = settings.value(QString(_dialMaxSettingsKey).arg(dialIndex), 32767).toInt(&convertOk);
+        if (!convertOk) {
+            calibration->max = 32767;
+        }
+
+        calibration->calibrated = settings.value(QString(_dialCalibratedSettingsKey).arg(dialIndex), false).toBool();
+
+        qCDebug(JoystickLog) << Q_FUNC_INFO
+                             << "dial:index:min:max:center:calibrated"
+                             << dialIndex
+                             << calibration->min
+                             << calibration->max
+                             << calibration->center
+                             << calibration->calibrated;
+    }
+
     int workingAxis = 0;
     for (int function = 0; function < maxFunction; function++) {
         int functionAxis = settings.value(_rgFunctionSettingsKey[function], -1).toInt(&convertOk);
@@ -396,6 +424,22 @@ void Joystick::_saveSettings()
                              << calibration->deadband;
     }
 
+    for (int dialIndex = 0; dialIndex < _dialCount; dialIndex++) {
+        const DialCalibration_t &calibration = _rgDialCalibration[dialIndex];
+        settings.setValue(QString(_dialCenterSettingsKey).arg(dialIndex), calibration.center);
+        settings.setValue(QString(_dialMinSettingsKey).arg(dialIndex), calibration.min);
+        settings.setValue(QString(_dialMaxSettingsKey).arg(dialIndex), calibration.max);
+        settings.setValue(QString(_dialCalibratedSettingsKey).arg(dialIndex), calibration.calibrated);
+        qCDebug(JoystickLog) << Q_FUNC_INFO
+                             << "name:dial:min:max:center:calibrated"
+                             << _name
+                             << dialIndex
+                             << calibration.min
+                             << calibration.max
+                             << calibration.center
+                             << calibration.calibrated;
+    }
+
     // Write mode 2 mappings without changing mapping currently in use
     int temp[maxFunction];
     _remapAxes(_transmitterMode, 2, temp);
@@ -448,7 +492,7 @@ void Joystick::setTXMode(int mode)
     }
 }
 
-float Joystick::_adjustRange(int value, const Calibration_t &calibration, bool withDeadbands)
+float Joystick::_adjustRange(int value, const Calibration_t &calibration, bool withDeadbands) const
 {
     float valueNormalized;
     float axisLength;
@@ -490,6 +534,75 @@ float Joystick::_normalizeRawAxis(int value) const
     constexpr float rawAxisMax = 32767.0f;
     const float normalized = static_cast<float>(value) / rawAxisMax;
     return std::max(-1.0f, std::min(normalized, 1.0f));
+}
+
+float Joystick::_adjustDialRange(int value, const DialCalibration_t &calibration) const
+{
+    if (!calibration.calibrated) {
+        return _normalizeRawAxis(value);
+    }
+
+    float axisLength = 0.0f;
+    float correctedValue = 0.0f;
+
+    if (value >= calibration.center) {
+        axisLength = static_cast<float>(calibration.max - calibration.center);
+        if (axisLength <= 0.0f) {
+            return _normalizeRawAxis(value);
+        }
+
+        correctedValue = static_cast<float>(value - calibration.center) / axisLength;
+    } else {
+        axisLength = static_cast<float>(calibration.center - calibration.min);
+        if (axisLength <= 0.0f) {
+            return _normalizeRawAxis(value);
+        }
+
+        correctedValue = -static_cast<float>(calibration.center - value) / axisLength;
+    }
+
+    return std::max(-1.0f, std::min(correctedValue, 1.0f));
+}
+
+bool Joystick::_validDial(int dialIndex) const
+{
+    return dialIndex >= 0 && dialIndex < _dialCount;
+}
+
+int Joystick::_dialAxisForIndex(int dialIndex) const
+{
+    if (!_validDial(dialIndex)) {
+        return -1;
+    }
+
+    const bool useG4AuxAxes = _name.contains(QStringLiteral("G4"), Qt::CaseInsensitive);
+    if (useG4AuxAxes) {
+        static constexpr int g4DialAxes[_dialCount] = { 0, 3 };
+        const int axis = g4DialAxes[dialIndex];
+        return _validAxis(axis) ? axis : -1;
+    }
+
+    const AxisFunction_t function = (dialIndex == 0) ? gimbalPitchFunction : gimbalYawFunction;
+    const int axis = _rgFunctionAxis[function];
+    return _validAxis(axis) ? axis : -1;
+}
+
+float Joystick::_dialValue(int dialIndex, int rawValue, int axis) const
+{
+    if (!_validDial(dialIndex) || (axis < 0)) {
+        return 0.0f;
+    }
+
+    if (_rgDialCalibration[dialIndex].calibrated) {
+        return _adjustDialRange(rawValue, _rgDialCalibration[dialIndex]);
+    }
+
+    const bool useG4AuxAxes = _name.contains(QStringLiteral("G4"), Qt::CaseInsensitive);
+    if (useG4AuxAxes) {
+        return _normalizeRawAxis(rawValue);
+    }
+
+    return _adjustRange(rawValue, _rgCalibration[axis], _deadband);
 }
 
 void Joystick::run()
@@ -660,34 +773,13 @@ void Joystick::_handleAxis()
     axis = _rgFunctionAxis[throttleFunction];
     float throttle = _adjustRange(_rgAxisValues[axis], _rgCalibration[axis], (_throttleMode == ThrottleModeDownZero) ? false :_deadband);
 
-    int aux1Axis = -1;
-    int aux2Axis = -1;
-    const bool useG4AuxAxes = _name.contains(QStringLiteral("G4"), Qt::CaseInsensitive);
-
-    // Custom G4 controllers expose the rotary dials on raw axes 0 and 3.
-    if (useG4AuxAxes) {
-        aux1Axis = (_axisCount > 0) ? 0 : -1;
-        aux2Axis = (_axisCount > 3) ? 3 : -1;
-    } else {
-        aux1Axis = (_axisCount > 4) ? _rgFunctionAxis[gimbalPitchFunction] : -1;
-        aux2Axis = (_axisCount > 5) ? _rgFunctionAxis[gimbalYawFunction]   : -1;
-    }
+    const int aux1Axis = _dialAxisForIndex(0);
+    const int aux2Axis = _dialAxisForIndex(1);
 
     const int rawAux1 = (aux1Axis >= 0) ? _rgAxisValues[aux1Axis] : 0;
     const int rawAux2 = (aux2Axis >= 0) ? _rgAxisValues[aux2Axis] : 0;
-    float aux1Normalized = 0.0f;
-    if (aux1Axis >= 0) {
-        aux1Normalized = useG4AuxAxes
-            ? _normalizeRawAxis(rawAux1)
-            : _adjustRange(rawAux1, _rgCalibration[aux1Axis], _deadband);
-    }
-
-    float aux2Normalized = 0.0f;
-    if (aux2Axis >= 0) {
-        aux2Normalized = useG4AuxAxes
-            ? _normalizeRawAxis(rawAux2)
-            : _adjustRange(rawAux2, _rgCalibration[aux2Axis], _deadband);
-    }
+    const float aux1Normalized = _dialValue(0, rawAux1, aux1Axis);
+    const float aux2Normalized = _dialValue(1, rawAux2, aux2Axis);
 
     const int manualControlAux2 = qBound(-1000, qRound(aux2Normalized * 1000.0f), 1000);
 
@@ -874,6 +966,105 @@ Joystick::Calibration_t Joystick::getCalibration(int axis) const
     }
 
     return _rgCalibration[axis];
+}
+
+bool Joystick::dialAvailable(int dialIndex) const
+{
+    return _dialAxisForIndex(dialIndex) >= 0;
+}
+
+int Joystick::dialAxis(int dialIndex) const
+{
+    return _dialAxisForIndex(dialIndex);
+}
+
+int Joystick::dialCurrentValue(int dialIndex) const
+{
+    const int axis = _dialAxisForIndex(dialIndex);
+    return (axis >= 0) ? _rgAxisValues[axis] : 0;
+}
+
+int Joystick::dialMin(int dialIndex) const
+{
+    return _validDial(dialIndex) ? _rgDialCalibration[dialIndex].min : 0;
+}
+
+int Joystick::dialMax(int dialIndex) const
+{
+    return _validDial(dialIndex) ? _rgDialCalibration[dialIndex].max : 0;
+}
+
+int Joystick::dialCenter(int dialIndex) const
+{
+    return _validDial(dialIndex) ? _rgDialCalibration[dialIndex].center : 0;
+}
+
+float Joystick::dialNormalizedValue(int dialIndex) const
+{
+    const int axis = _dialAxisForIndex(dialIndex);
+    return (axis >= 0) ? _dialValue(dialIndex, _rgAxisValues[axis], axis) : 0.0f;
+}
+
+void Joystick::setDialMin(int dialIndex, int value)
+{
+    if (!_validDial(dialIndex)) {
+        return;
+    }
+
+    _rgDialCalibration[dialIndex].min = qBound(-32767, value, 32767);
+    _rgDialCalibration[dialIndex].calibrated = true;
+    _saveSettings();
+    emit dialCalibrationChanged();
+}
+
+void Joystick::setDialMax(int dialIndex, int value)
+{
+    if (!_validDial(dialIndex)) {
+        return;
+    }
+
+    _rgDialCalibration[dialIndex].max = qBound(-32767, value, 32767);
+    _rgDialCalibration[dialIndex].calibrated = true;
+    _saveSettings();
+    emit dialCalibrationChanged();
+}
+
+void Joystick::setDialCenter(int dialIndex, int value)
+{
+    if (!_validDial(dialIndex)) {
+        return;
+    }
+
+    _rgDialCalibration[dialIndex].center = qBound(-32767, value, 32767);
+    _rgDialCalibration[dialIndex].calibrated = true;
+    _saveSettings();
+    emit dialCalibrationChanged();
+}
+
+void Joystick::setDialMinToCurrent(int dialIndex)
+{
+    setDialMin(dialIndex, dialCurrentValue(dialIndex));
+}
+
+void Joystick::setDialMaxToCurrent(int dialIndex)
+{
+    setDialMax(dialIndex, dialCurrentValue(dialIndex));
+}
+
+void Joystick::setDialCenterToCurrent(int dialIndex)
+{
+    setDialCenter(dialIndex, dialCurrentValue(dialIndex));
+}
+
+void Joystick::resetDialCalibration(int dialIndex)
+{
+    if (!_validDial(dialIndex)) {
+        return;
+    }
+
+    _rgDialCalibration[dialIndex] = DialCalibration_t{};
+    _saveSettings();
+    emit dialCalibrationChanged();
 }
 
 void Joystick::setFunctionAxis(AxisFunction_t function, int axis)

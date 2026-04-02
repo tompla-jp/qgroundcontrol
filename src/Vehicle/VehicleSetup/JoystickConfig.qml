@@ -87,12 +87,16 @@ SetupPage {
                     visible:    _activeJoystick.axisCount != 0
                 }
                 QGCTabButton {
+                    text:       qsTr("ダイヤルキャリブレーション")
+                    visible:    _activeJoystick && (_activeJoystick.dialAvailable(0) || _activeJoystick.dialAvailable(1))
+                }
+                QGCTabButton {
                     text:       qsTr("Advanced")
                     visible:    _activeJoystick.axisCount != 0
                 }
             }
 
-            property var pages:  ["JoystickConfigGeneral.qml", "JoystickConfigButtons.qml", "JoystickConfigCalibration.qml", "JoystickConfigAdvanced.qml"]
+            property var pages:  ["JoystickConfigGeneral.qml", "JoystickConfigButtons.qml", "JoystickConfigCalibration.qml", "JoystickConfigDialCalibration.qml", "JoystickConfigAdvanced.qml"]
 
             Loader {
                 id:             joyLoader
@@ -103,4 +107,3 @@ SetupPage {
         }
     }
 }
-

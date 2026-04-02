@@ -55,6 +55,7 @@
         <file alias="JoystickConfigAdvanced.qml">src/Vehicle/VehicleSetup/JoystickConfigAdvanced.qml</file>
         <file alias="JoystickConfigButtons.qml">src/Vehicle/VehicleSetup/JoystickConfigButtons.qml</file>
         <file alias="JoystickConfigCalibration.qml">src/Vehicle/VehicleSetup/JoystickConfigCalibration.qml</file>
+        <file alias="JoystickConfigDialCalibration.qml">src/Vehicle/VehicleSetup/JoystickConfigDialCalibration.qml</file>
         <file alias="JoystickConfigGeneral.qml">src/Vehicle/VehicleSetup/JoystickConfigGeneral.qml</file>
         <file alias="LinkSettings.qml">src/UI/preferences/LinkSettings.qml</file>
         <file alias="LogDownloadPage.qml">src/AnalyzeView/LogDownloadPage.qml</file>
