@@ -28,6 +28,7 @@ Rectangle {
     property real size:                         _defaultSize
     property var  vehicle:                      null
     property bool usedByMultipleVehicleList:    false
+    property real headingFontScale:             1.0
 
     property real _defaultSize:                 usedByMultipleVehicleList ? ScreenTools.defaultFontPixelHeight * 3 : ScreenTools.defaultFontPixelHeight * 10
     property real _sizeRatio:                   (usedByMultipleVehicleList || ScreenTools.isTinyScreen) ? (size / _defaultSize) * 0.5 : size / _defaultSize
@@ -154,7 +155,7 @@ Rectangle {
         text:                       vehicle && !usedByMultipleVehicleList ? _heading.toFixed(0) + "°" : ""
         horizontalAlignment:        Text.AlignHCenter
         color:                      qgcPal.text
-        font.pixelSize:             Math.max(18, _fontSize * 2)    // 表示文字を大きめに
+        font.pixelSize:             Math.max(16, _fontSize * 2 * headingFontScale)
         font.bold:                  true
     }
 }

@@ -487,8 +487,10 @@ ApplicationWindow {
 
             property bool _videoSurfacesBound: false
             readonly property real _hudEdgeInset: ScreenTools.defaultFontPixelHeight * 1.5
-            readonly property real _compassWidgetSize: (ScreenTools.defaultFontPixelHeight * 5 + 80) * 0.7
-            readonly property real _attitudeWidgetSize: _compassWidgetSize * 0.95
+            readonly property real _leftHudTopMargin: ScreenTools.defaultFontPixelHeight * 0.7
+            readonly property real _leftHudClusterSpacing: ScreenTools.defaultFontPixelHeight * 1.5
+            readonly property real _compassWidgetSize: (ScreenTools.defaultFontPixelHeight * 5 + 80) * 0.62
+            readonly property real _attitudeWidgetSize: _compassWidgetSize * 0.9
             readonly property real _pipAspectRatio: 4 / 3
             readonly property real _pipInfoHeight: ScreenTools.defaultFontPixelHeight * 2.3
             readonly property real _pipMaxHeight: parent.height * 0.36
@@ -569,18 +571,20 @@ ApplicationWindow {
 
                     // Compass only cluster
                     Row {
+                        id: leftHudCluster
                         spacing: ScreenTools.defaultFontPixelWidth * 3
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.margins: _hudEdgeInset
                         anchors.leftMargin: _hudEdgeInset
-                        anchors.topMargin: ScreenTools.defaultFontPixelHeight * 1.2
+                        anchors.topMargin: _leftHudTopMargin
 
                         IntegratedCompassAttitude {
                             id: compass
                             vehicle: mainWindow.activeVehicle
                             width: _compassWidgetSize
                             height: _compassWidgetSize
+                            headingFontScale: 0.74
                             compassBorder: 1
                             compassRadius: width / 2 - 6
                             attitudeSize: ScreenTools.defaultFontPixelWidth * 0.8
@@ -591,20 +595,189 @@ ApplicationWindow {
                     ReversedAttitudeWidget {
                         id: attitudeIndicator
                         anchors.left: parent.left
-                        anchors.bottom: parent.bottom
                         anchors.leftMargin: _hudEdgeInset
-                        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 1.4
+                        anchors.top: leftHudCluster.bottom
+                        anchors.topMargin: _leftHudClusterSpacing
                         size: _attitudeWidgetSize
                         vehicle: mainWindow.activeVehicle
                         showHeading: false
                         visible: !!mainWindow.activeVehicle
                     }
 
+                        Rectangle {
+                            id: localPositionBadge
+                            anchors.left: attitudeIndicator.left
+                            anchors.leftMargin: -Screen.pixelDensity * 5 + ScreenTools.defaultFontPixelWidth * 2
+                            anchors.top: attitudeIndicator.bottom
+                            anchors.topMargin: ScreenTools.defaultFontPixelHeight * 1.55
+                            visible: !!mainWindow.activeVehicle
+                        radius: ScreenTools.defaultFontPixelHeight * 0.42
+                        color: Qt.rgba(0, 0, 0, 0.42)
+                        border.width: 0
+                        clip: true
+
+                        readonly property var _localPosition: mainWindow.activeVehicle ? mainWindow.activeVehicle.localPosition : null
+                        readonly property bool _hasLocalPosition: !!_localPosition && _localPosition.telemetryAvailable
+                        readonly property real _badgeLeftPadding: ScreenTools.defaultFontPixelWidth * 0.4
+                        readonly property real _badgeRightPadding: ScreenTools.defaultFontPixelWidth * 0.18
+                        readonly property real _badgeVerticalPadding: ScreenTools.defaultFontPixelHeight * 0.24
+                        readonly property real _columnSpacing: ScreenTools.defaultFontPixelWidth * 0.38
+                        readonly property real _rowSpacing: ScreenTools.defaultFontPixelHeight * 0.14
+                        readonly property real _valueFontPixelSize: ScreenTools.defaultFontPixelHeight * 0.621
+                        readonly property real _fallbackWidth: Math.max(ScreenTools.defaultFontPixelWidth * 26, _attitudeWidgetSize * 1.95)
+                        readonly property real _preferredWidth: cpuTempBadge.visible
+                                                                    ? Math.max(_fallbackWidth, cpuTempBadge.x + cpuTempBadge.width - x + ScreenTools.defaultFontPixelWidth * 4)
+                                                                    : _fallbackWidth
+                        readonly property real _maxAllowedWidth: Math.min(parent.width - x - _hudEdgeInset, _preferredWidth)
+
+                        function _formatFact(fact, unit) {
+                            if (!_hasLocalPosition || !fact) {
+                                return "--"
+                            }
+
+                            const numeric = Number(fact.value)
+                            return isFinite(numeric) ? numeric.toFixed(1) + unit : "--"
+                        }
+
+                        width: Math.min(_maxAllowedWidth, localPositionGrid.width + _badgeLeftPadding + _badgeRightPadding)
+                        implicitHeight: localPositionGrid.implicitHeight + _badgeVerticalPadding * 2
+
+                        TextMetrics {
+                            id: localPositionMetrics
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            readonly property real positionWidth: Math.max(
+                                                                      positionXMetric.advanceWidth,
+                                                                      positionYMetric.advanceWidth,
+                                                                      positionZMetric.advanceWidth)
+                            readonly property real velocityWidth: Math.max(
+                                                                      velocityXMetric.advanceWidth,
+                                                                      velocityYMetric.advanceWidth,
+                                                                      velocityZMetric.advanceWidth)
+                        }
+
+                        TextMetrics {
+                            id: positionXMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("x: -000.0m")
+                        }
+
+                        TextMetrics {
+                            id: positionYMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("y: -000.0m")
+                        }
+
+                        TextMetrics {
+                            id: positionZMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("z: -000.0m")
+                        }
+
+                        TextMetrics {
+                            id: velocityXMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("x: -000.0m/s")
+                        }
+
+                        TextMetrics {
+                            id: velocityYMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("y: -000.0m/s")
+                        }
+
+                        TextMetrics {
+                            id: velocityZMetric
+                            font.pixelSize: localPositionBadge._valueFontPixelSize
+                            font.bold: true
+                            text: qsTr("z: -000.0m/s")
+                        }
+
+                        Column {
+                            id: localPositionGrid
+                            anchors.left: parent.left
+                            anchors.leftMargin: localPositionBadge._badgeLeftPadding
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: localPositionBadge._rowSpacing
+                            readonly property real xColumnWidth: Math.ceil(Math.max(positionXMetric.advanceWidth, velocityXMetric.advanceWidth))
+                            readonly property real yColumnWidth: Math.ceil(Math.max(positionYMetric.advanceWidth, velocityYMetric.advanceWidth))
+                            readonly property real zColumnWidth: Math.ceil(Math.max(positionZMetric.advanceWidth, velocityZMetric.advanceWidth))
+                            width: xColumnWidth + yColumnWidth + zColumnWidth + localPositionBadge._columnSpacing * 2
+
+                            Row {
+                                spacing: localPositionBadge._columnSpacing
+
+                                QGCLabel {
+                                    id: posXLabel
+                                    width: localPositionGrid.xColumnWidth
+                                    text: qsTr("x: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.x : null, "m"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+
+                                QGCLabel {
+                                    id: posYLabel
+                                    width: localPositionGrid.yColumnWidth
+                                    text: qsTr("y: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.y : null, "m"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+
+                                QGCLabel {
+                                    id: posZLabel
+                                    width: localPositionGrid.zColumnWidth
+                                    text: qsTr("z: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.z : null, "m"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+                            }
+
+                            Row {
+                                spacing: localPositionBadge._columnSpacing
+
+                                QGCLabel {
+                                    id: velXLabel
+                                    width: localPositionGrid.xColumnWidth
+                                    text: qsTr("x: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vx : null, "m/s"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+
+                                QGCLabel {
+                                    id: velYLabel
+                                    width: localPositionGrid.yColumnWidth
+                                    text: qsTr("y: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vy : null, "m/s"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+
+                                QGCLabel {
+                                    id: velZLabel
+                                    width: localPositionGrid.zColumnWidth
+                                    text: qsTr("z: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vz : null, "m/s"))
+                                    color: qgcPal.text
+                                    font.pixelSize: localPositionBadge._valueFontPixelSize
+                                    font.bold: true
+                                }
+                            }
+                        }
+                    }
+
                     Rectangle {
                         id: cpuTempBadge
                         anchors.left: attitudeIndicator.right
-                        anchors.verticalCenter: attitudeIndicator.verticalCenter
-                        anchors.verticalCenterOffset: Screen.pixelDensity * 6
+                        anchors.top: leftHudCluster.top
+                        anchors.topMargin: ScreenTools.defaultFontPixelHeight * 0.12
                         anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 1.3
                         visible: !!mainWindow.activeVehicle && mainWindow.activeVehicle.cpuTempAvailable
                         radius: ScreenTools.defaultFontPixelHeight * 0.42

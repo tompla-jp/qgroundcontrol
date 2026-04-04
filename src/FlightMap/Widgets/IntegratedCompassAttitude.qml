@@ -31,6 +31,7 @@ Item {
     property var  vehicle:                      globals.activeVehicle
     property var  qgcPal:                       QGroundControl.globalPalette
     property bool usedByMultipleVehicleList:    false
+    property real headingFontScale:             1.0
 
     property real _totalAttitudeSize: attitudeSize + attitudeSpacing
 
@@ -62,6 +63,7 @@ Item {
             size:                       parent.width - compassBorder
             vehicle:                    control.vehicle
             usedByMultipleVehicleList:  control.usedByMultipleVehicleList
+            headingFontScale:           control.headingFontScale
             anchors.centerIn:           parent
         }
     }
