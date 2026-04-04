@@ -1,0 +1,25 @@
+name: Linux Smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/linux-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Print context
+        run: |
+          echo "Linux smoke workflow is running"
+          echo "ref=$GITHUB_REF"
+          echo "sha=$GITHUB_SHA"
+          uname -a
+
