@@ -60,10 +60,14 @@ jobs:
 
       - name: Enable custom build
         run: |
+          if exist ".\custom" (
+            echo Directory ".\custom" already exists. Using existing custom build.
+            exit /b 0
+          )
           if not exist ".\custom-example" (
             echo Directory ".\custom-example" does not exist. && exit /b 1
           )
-          xcopy /E /I ".\custom-example" ".\custom"
+          xcopy /E /I /Y ".\custom-example" ".\custom"
 
       - name: Install GStreamer
         uses: blinemedical/setup-gstreamer@v1
