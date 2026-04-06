@@ -1,23 +1,7 @@
 name: Custom build
 
 on:
-  push:
-    branches:
-      - main
-      - master
-      - 'Stable*'
-    tags:
-      - 'v*'
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/custom.yml'
-      - 'deploy/windows/**'
-      - 'src/**'
-      - 'custom/**'
-      - 'custom-example/**'
-      - 'CMakeLists.txt'
-      - 'cmake/**'
 
 # concurrency:
 #   group: ${{ github.workflow }}-${{ github.ref }}

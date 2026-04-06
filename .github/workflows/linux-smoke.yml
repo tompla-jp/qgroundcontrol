@@ -1,11 +1,6 @@
 name: Linux Smoke
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/linux-smoke.yml'
   workflow_dispatch:
 
 jobs:
@@ -22,4 +17,3 @@ jobs:
           echo "ref=$GITHUB_REF"
           echo "sha=$GITHUB_SHA"
           uname -a
-
