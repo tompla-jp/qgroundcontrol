@@ -13,7 +13,6 @@ import QGroundControl
 import QGroundControl.Controls
 import QGroundControl.MultiVehicleManager
 import QGroundControl.ScreenTools
-import QGroundControl.Palette
 
 //------------------------------------------------------------------------
 //-- WiFi-style Telemetry RSSI Indicator (HUD)
@@ -32,13 +31,10 @@ Item {
     property bool _rssiValid:     !isNaN(_rssi)
     property bool _rssiFresh:     false
     property bool _hasData:       _rssiFresh && _rssiValid
-    property string _displayText: _hasData ? _rssiText(_rssi) + "dBm" : "--dBm"
+    property real _signalPercent: _hasData ? _percentForRssi(_rssi) : NaN
+    property string _displayText: _hasData ? _percentText(_signalPercent) : "--%"
 
-    QGCPalette { id: qgcPal }
-
-    property color _activeColor:   qgcPal.text
-    property color _inactiveColor: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.35)
-    property color _currentColor:  _hasData ? _activeColor : _inactiveColor
+    property color _currentColor:  "#ffffff"
 
     Timer {
         id:         staleTimer
@@ -67,10 +63,31 @@ Item {
 
     implicitWidth: rssiLabel.implicitWidth + _hPadding * 2
 
-    function _rssiText(value) {
+    function _percentForRssi(value) {
         if (isNaN(value)) {
-            return "--"
+            return NaN
         }
-        return Number(value).toString()
+
+        let percent = 0
+
+        if (value <= -85) {
+            percent = 0
+        } else if (value <= -75) {
+            percent = (value + 85) * 3
+        } else if (value <= -65) {
+            percent = 30 + (value + 75) * 3
+        } else if (value <= -55) {
+            percent = 60 + (value + 65) * 2
+        } else if (value <= -45) {
+            percent = 80 + (value + 55) * 2
+        } else {
+            percent = 100
+        }
+
+        return Math.max(0, Math.min(100, Math.round(percent / 5) * 5))
+    }
+
+    function _percentText(value) {
+        return isNaN(value) ? "--%" : Number(value).toString() + "%"
     }
 }
