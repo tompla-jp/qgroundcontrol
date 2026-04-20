@@ -621,22 +621,42 @@ ApplicationWindow {
                         readonly property real _badgeLeftPadding: ScreenTools.defaultFontPixelWidth * 0.4
                         readonly property real _badgeRightPadding: ScreenTools.defaultFontPixelWidth * 0.18
                         readonly property real _badgeVerticalPadding: ScreenTools.defaultFontPixelHeight * 0.24
-                        readonly property real _columnSpacing: ScreenTools.defaultFontPixelWidth * 0.38
-                        readonly property real _rowSpacing: ScreenTools.defaultFontPixelHeight * 0.14
-                        readonly property real _valueFontPixelSize: ScreenTools.defaultFontPixelHeight * 0.621
+                        readonly property real _columnSpacing: ScreenTools.defaultFontPixelWidth * 0.72
+                        readonly property real _valueFontPixelSize: ScreenTools.defaultFontPixelHeight * 0.68
                         readonly property real _fallbackWidth: Math.max(ScreenTools.defaultFontPixelWidth * 26, _attitudeWidgetSize * 1.95)
                         readonly property real _preferredWidth: cpuTempBadge.visible
                                                                     ? Math.max(_fallbackWidth, cpuTempBadge.x + cpuTempBadge.width - x + ScreenTools.defaultFontPixelWidth * 4)
                                                                     : _fallbackWidth
                         readonly property real _maxAllowedWidth: Math.min(parent.width - x - _hudEdgeInset, _preferredWidth)
 
-                        function _formatFact(fact, unit) {
+                        function _factValue(fact) {
                             if (!_hasLocalPosition || !fact) {
-                                return "--"
+                                return NaN
                             }
 
                             const numeric = Number(fact.value)
-                            return isFinite(numeric) ? numeric.toFixed(1) + unit : "--"
+                            return isFinite(numeric) ? numeric : NaN
+                        }
+
+                        function _formatValue(value, unit) {
+                            return isFinite(value) ? value.toFixed(1) + unit : "--"
+                        }
+
+                        function _horizontalDistanceValue() {
+                            const x = _factValue(_localPosition ? _localPosition.x : null)
+                            const y = _factValue(_localPosition ? _localPosition.y : null)
+                            return isFinite(x) && isFinite(y) ? Math.sqrt(x * x + y * y) : NaN
+                        }
+
+                        function _horizontalSpeedValue() {
+                            const vx = _factValue(_localPosition ? _localPosition.vx : null)
+                            const vy = _factValue(_localPosition ? _localPosition.vy : null)
+                            return isFinite(vx) && isFinite(vy) ? Math.sqrt(vx * vx + vy * vy) : NaN
+                        }
+
+                        function _heightValue() {
+                            const z = _factValue(_localPosition ? _localPosition.z : null)
+                            return isFinite(z) ? -z : NaN
                         }
 
                         width: Math.min(_maxAllowedWidth, localPositionGrid.width + _badgeLeftPadding + _badgeRightPadding)
@@ -646,129 +666,68 @@ ApplicationWindow {
                             id: localPositionMetrics
                             font.pixelSize: localPositionBadge._valueFontPixelSize
                             font.bold: true
-                            readonly property real positionWidth: Math.max(
-                                                                      positionXMetric.advanceWidth,
-                                                                      positionYMetric.advanceWidth,
-                                                                      positionZMetric.advanceWidth)
-                            readonly property real velocityWidth: Math.max(
-                                                                      velocityXMetric.advanceWidth,
-                                                                      velocityYMetric.advanceWidth,
-                                                                      velocityZMetric.advanceWidth)
+                            readonly property real speedWidth: speedMetric.advanceWidth
+                            readonly property real distanceWidth: distanceMetric.advanceWidth
+                            readonly property real heightWidth: heightMetric.advanceWidth
                         }
 
                         TextMetrics {
-                            id: positionXMetric
+                            id: speedMetric
                             font.pixelSize: localPositionBadge._valueFontPixelSize
                             font.bold: true
-                            text: qsTr("x: -000.0m")
+                            text: qsTr("S: -000.0m/s")
                         }
 
                         TextMetrics {
-                            id: positionYMetric
+                            id: distanceMetric
                             font.pixelSize: localPositionBadge._valueFontPixelSize
                             font.bold: true
-                            text: qsTr("y: -000.0m")
+                            text: qsTr("D: -000.0m")
                         }
 
                         TextMetrics {
-                            id: positionZMetric
+                            id: heightMetric
                             font.pixelSize: localPositionBadge._valueFontPixelSize
                             font.bold: true
-                            text: qsTr("z: -000.0m")
+                            text: qsTr("H: -000.0m")
                         }
 
-                        TextMetrics {
-                            id: velocityXMetric
-                            font.pixelSize: localPositionBadge._valueFontPixelSize
-                            font.bold: true
-                            text: qsTr("x: -000.0m/s")
-                        }
-
-                        TextMetrics {
-                            id: velocityYMetric
-                            font.pixelSize: localPositionBadge._valueFontPixelSize
-                            font.bold: true
-                            text: qsTr("y: -000.0m/s")
-                        }
-
-                        TextMetrics {
-                            id: velocityZMetric
-                            font.pixelSize: localPositionBadge._valueFontPixelSize
-                            font.bold: true
-                            text: qsTr("z: -000.0m/s")
-                        }
-
-                        Column {
+                        Row {
                             id: localPositionGrid
                             anchors.left: parent.left
                             anchors.leftMargin: localPositionBadge._badgeLeftPadding
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: localPositionBadge._rowSpacing
-                            readonly property real xColumnWidth: Math.ceil(Math.max(positionXMetric.advanceWidth, velocityXMetric.advanceWidth))
-                            readonly property real yColumnWidth: Math.ceil(Math.max(positionYMetric.advanceWidth, velocityYMetric.advanceWidth))
-                            readonly property real zColumnWidth: Math.ceil(Math.max(positionZMetric.advanceWidth, velocityZMetric.advanceWidth))
-                            width: xColumnWidth + yColumnWidth + zColumnWidth + localPositionBadge._columnSpacing * 2
+                            spacing: localPositionBadge._columnSpacing
+                            readonly property real speedColumnWidth: Math.ceil(localPositionMetrics.speedWidth)
+                            readonly property real distanceColumnWidth: Math.ceil(localPositionMetrics.distanceWidth)
+                            readonly property real heightColumnWidth: Math.ceil(localPositionMetrics.heightWidth)
+                            width: speedColumnWidth + distanceColumnWidth + heightColumnWidth + localPositionBadge._columnSpacing * 2
 
-                            Row {
-                                spacing: localPositionBadge._columnSpacing
-
-                                QGCLabel {
-                                    id: posXLabel
-                                    width: localPositionGrid.xColumnWidth
-                                    text: qsTr("x: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.x : null, "m"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
-
-                                QGCLabel {
-                                    id: posYLabel
-                                    width: localPositionGrid.yColumnWidth
-                                    text: qsTr("y: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.y : null, "m"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
-
-                                QGCLabel {
-                                    id: posZLabel
-                                    width: localPositionGrid.zColumnWidth
-                                    text: qsTr("z: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.z : null, "m"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
+                            QGCLabel {
+                                id: speedLabel
+                                width: localPositionGrid.speedColumnWidth
+                                text: qsTr("S: %1").arg(localPositionBadge._formatValue(localPositionBadge._horizontalSpeedValue(), "m/s"))
+                                color: qgcPal.text
+                                font.pixelSize: localPositionBadge._valueFontPixelSize
+                                font.bold: true
                             }
 
-                            Row {
-                                spacing: localPositionBadge._columnSpacing
+                            QGCLabel {
+                                id: distanceLabel
+                                width: localPositionGrid.distanceColumnWidth
+                                text: qsTr("D: %1").arg(localPositionBadge._formatValue(localPositionBadge._horizontalDistanceValue(), "m"))
+                                color: qgcPal.text
+                                font.pixelSize: localPositionBadge._valueFontPixelSize
+                                font.bold: true
+                            }
 
-                                QGCLabel {
-                                    id: velXLabel
-                                    width: localPositionGrid.xColumnWidth
-                                    text: qsTr("x: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vx : null, "m/s"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
-
-                                QGCLabel {
-                                    id: velYLabel
-                                    width: localPositionGrid.yColumnWidth
-                                    text: qsTr("y: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vy : null, "m/s"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
-
-                                QGCLabel {
-                                    id: velZLabel
-                                    width: localPositionGrid.zColumnWidth
-                                    text: qsTr("z: %1").arg(localPositionBadge._formatFact(localPositionBadge._localPosition ? localPositionBadge._localPosition.vz : null, "m/s"))
-                                    color: qgcPal.text
-                                    font.pixelSize: localPositionBadge._valueFontPixelSize
-                                    font.bold: true
-                                }
+                            QGCLabel {
+                                id: heightLabel
+                                width: localPositionGrid.heightColumnWidth
+                                text: qsTr("H: %1").arg(localPositionBadge._formatValue(localPositionBadge._heightValue(), "m"))
+                                color: qgcPal.text
+                                font.pixelSize: localPositionBadge._valueFontPixelSize
+                                font.bold: true
                             }
                         }
                     }
