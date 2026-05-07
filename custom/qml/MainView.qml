@@ -479,6 +479,33 @@ ApplicationWindow {
         initialItem: mainPageComponent
     }
 
+    Rectangle {
+        id: statusTextOverlay
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: _topHudOffset + ScreenTools.defaultFontPixelHeight * 0.5
+        z: 100
+        visible: typeof customApp !== "undefined" && customApp.statusOverlayVisible
+        color: "#d60000"
+        radius: 0
+        width: Math.min(parent.width * 0.84, Math.max(ScreenTools.defaultFontPixelWidth * 32, statusTextOverlayLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 3))
+        height: statusTextOverlayLabel.implicitHeight + ScreenTools.defaultFontPixelHeight
+
+        QGCLabel {
+            id: statusTextOverlayLabel
+            anchors.centerIn: parent
+            width: parent.width - ScreenTools.defaultFontPixelWidth * 2
+            text: typeof customApp !== "undefined" ? customApp.statusOverlayMessage : ""
+            color: "#ffffff"
+            font.pixelSize: ScreenTools.defaultFontPixelHeight * 1.08
+            font.bold: true
+            textFormat: Text.PlainText
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WrapAnywhere
+        }
+    }
+
     Component {
         id: mainPageComponent
         Rectangle {
