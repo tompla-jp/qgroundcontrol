@@ -486,7 +486,7 @@ ApplicationWindow {
         anchors.topMargin: _topHudOffset + ScreenTools.defaultFontPixelHeight * 0.5
         z: 100
         visible: typeof customApp !== "undefined" && customApp.statusOverlayVisible
-        color: "#d60000"
+        color: Qt.rgba(0.84, 0, 0, 0.55)
         radius: 0
         width: Math.min(parent.width * 0.84, Math.max(ScreenTools.defaultFontPixelWidth * 32, statusTextOverlayLabel.implicitWidth + ScreenTools.defaultFontPixelWidth * 3))
         height: statusTextOverlayLabel.implicitHeight + ScreenTools.defaultFontPixelHeight
@@ -639,7 +639,7 @@ ApplicationWindow {
                             anchors.topMargin: ScreenTools.defaultFontPixelHeight * 1.55
                             visible: !!mainWindow.activeVehicle
                         radius: ScreenTools.defaultFontPixelHeight * 0.42
-                        color: Qt.rgba(0, 0, 0, 0.42)
+                        color: "transparent"
                         border.width: 0
                         clip: true
 
