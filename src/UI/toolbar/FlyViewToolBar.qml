@@ -72,7 +72,80 @@ Rectangle {
             Layout.preferredHeight: viewButtonRow.height
             icon.source:            "/res/QGCLogoFull.svg"
             logo:                   true
-            onClicked:              mainWindow.showToolSelectDialog()
+
+            property bool _usesAdminToolLock: typeof mainWindow.adminToolLockEnabled !== "undefined" && mainWindow.adminToolLockEnabled
+            property bool _adminHolding: false
+            property bool _adminHoldTriggered: false
+            property int _adminHoldElapsedMs: 0
+            readonly property int _adminLongPressMs: _usesAdminToolLock && typeof mainWindow.adminLongPressMs !== "undefined" ? mainWindow.adminLongPressMs : 8000
+            readonly property int _adminProgressDelayMs: _usesAdminToolLock && typeof mainWindow.adminHoldProgressDelayMs !== "undefined" ? mainWindow.adminHoldProgressDelayMs : 5000
+            readonly property bool _adminModeActive: _usesAdminToolLock && typeof mainWindow.adminModeActive !== "undefined" && mainWindow.adminModeActive
+            readonly property real _adminProgressValue: Math.max(0, Math.min(1, (_adminHoldElapsedMs - _adminProgressDelayMs) / (_adminLongPressMs - _adminProgressDelayMs)))
+            readonly property bool _showAdminHoldProgress: _usesAdminToolLock &&
+                                                           !_adminModeActive &&
+                                                           _adminHolding &&
+                                                           _adminHoldElapsedMs >= _adminProgressDelayMs &&
+                                                           !_adminHoldTriggered
+
+            Timer {
+                id: adminHoldProgressTimer
+                interval: 50
+                repeat: true
+                onTriggered: {
+                    currentButton._adminHoldElapsedMs += interval
+                    if (currentButton._adminHoldElapsedMs >= currentButton._adminLongPressMs) {
+                        stop()
+                    }
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                pressAndHoldInterval: currentButton._adminLongPressMs
+
+                function resetAdminHoldState() {
+                    adminHoldProgressTimer.stop()
+                    currentButton._adminHolding = false
+                    currentButton._adminHoldElapsedMs = 0
+                }
+
+                onPressed: {
+                    currentButton._adminHoldTriggered = false
+                    if (currentButton._usesAdminToolLock && !currentButton._adminModeActive) {
+                        currentButton._adminHolding = true
+                        currentButton._adminHoldElapsedMs = 0
+                        adminHoldProgressTimer.restart()
+                    }
+                }
+
+                onCanceled: resetAdminHoldState()
+                onReleased: resetAdminHoldState()
+
+                onPressAndHold: {
+                    if (currentButton._usesAdminToolLock) {
+                        currentButton._adminHoldTriggered = true
+                        resetAdminHoldState()
+                        if (typeof mainWindow.handleAdminToolButtonPressAndHold === "function") {
+                            mainWindow.handleAdminToolButtonPressAndHold()
+                        }
+                    } else {
+                        mainWindow.showToolSelectDialog()
+                    }
+                }
+
+                onClicked: {
+                    if (currentButton._usesAdminToolLock) {
+                        if (currentButton._adminHoldTriggered) {
+                            currentButton._adminHoldTriggered = false
+                        } else if (typeof mainWindow.handleAdminToolButtonClicked === "function") {
+                            mainWindow.handleAdminToolButtonClicked()
+                        }
+                    } else {
+                        mainWindow.showToolSelectDialog()
+                    }
+                }
+            }
         }
 
         MainStatusIndicator {
@@ -257,6 +330,25 @@ Rectangle {
         width:          _activeVehicle ? _activeVehicle.loadProgress * parent.width : 0
         color:          qgcPal.colorGreen
         visible:        !largeProgressBar.visible
+    }
+
+    Rectangle {
+        id:             adminHoldProgressTrack
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        anchors.bottom: parent.bottom
+        height:         Math.max(3, Math.round(_root.height * 0.08))
+        color:          Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.18)
+        visible:        currentButton._showAdminHoldProgress
+        z:              20
+
+        Rectangle {
+            anchors.left:   parent.left
+            anchors.top:    parent.top
+            anchors.bottom: parent.bottom
+            width:          parent.width * currentButton._adminProgressValue
+            color:          qgcPal.colorGreen
+        }
     }
 
     // Large parameter download progress bar

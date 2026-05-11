@@ -83,6 +83,18 @@ SettingsPage {
             }
         }
 
+        QGCCheckBoxSlider {
+            Layout.fillWidth: true
+            text: qsTr("管理者モード")
+            visible: typeof mainWindow.adminModeActive !== "undefined"
+            checked: typeof mainWindow.adminModeActive !== "undefined" && mainWindow.adminModeActive
+            onClicked: {
+                if (typeof mainWindow.adminModeActive !== "undefined" && mainWindow.adminModeActive && typeof mainWindow.lockAdminMode === "function") {
+                    mainWindow.lockAdminMode()
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth:   true
             spacing:            ScreenTools.defaultFontPixelWidth * 2

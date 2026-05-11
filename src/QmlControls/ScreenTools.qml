@@ -36,7 +36,7 @@ Item {
     readonly property real smallFontPointRatio:      0.75
     readonly property real mediumFontPointRatio:     1.25
     readonly property real largeFontPointRatio:      1.5
-    readonly property real defaultUiScale:           0.79
+    readonly property real defaultUiScale:           0.82
 
     /// You can use these properties to position ui elements in a screen resolution independent manner. Using fixed positioning values should not
     /// be done. All positioning should be done using anchors or a ratio of the defaultFontPixelHeight and defaultFontPixelWidth values. This way
@@ -227,9 +227,19 @@ Item {
             }
             var baseSize = _appFontPointSizeFact.value
             var scaledDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * defaultUiScale))
-            // Migrate legacy default scaling (0.79) back to current default.
+            if (ScreenToolsController.isAndroid) {
+                scaledDefault = Math.max(_appFontPointSizeFact.min, Math.min(_appFontPointSizeFact.max, Math.round(Math.min(Screen.width, Screen.height) / 38)))
+            }
+            // Migrate previous default scalings back to the current customer UI size.
             var legacyDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * 0.79))
-            if (baseSize === legacyDefault && defaultUiScale !== 0.79) {
+            var fullSizeDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * 1.0))
+            var previousCustomerDefault = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * 0.92))
+            var previousCustomerDefault2 = Math.max(_appFontPointSizeFact.min, Math.round(platformFontPointSize * 0.86))
+            if (ScreenToolsController.isAndroid ||
+                    (baseSize === legacyDefault && defaultUiScale !== 0.79) ||
+                    (baseSize === fullSizeDefault && defaultUiScale !== 1.0) ||
+                    (baseSize === previousCustomerDefault && defaultUiScale !== 0.92) ||
+                    (baseSize === previousCustomerDefault2 && defaultUiScale !== 0.86)) {
                 baseSize = scaledDefault
                 _appFontPointSizeFact.value = baseSize
             }

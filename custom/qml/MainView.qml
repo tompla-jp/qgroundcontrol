@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 import QGroundControl
@@ -30,6 +31,13 @@ ApplicationWindow {
     readonly property real _topHudHeight: ScreenTools.toolbarHeight + _topHudExtraHeight
     readonly property real _topHudOffset: _topHudInset + _topHudHeight
     readonly property real _topHudSideInset: ScreenTools.isMobile ? ScreenTools.defaultFontPixelWidth * 1.2 : 0
+    readonly property bool adminToolLockEnabled: true
+    readonly property int adminLongPressMs: 8000
+    readonly property int adminHoldProgressDelayMs: 5000
+    readonly property int _adminUnlockDurationMs: 60 * 60 * 1000
+    readonly property string _adminPinHash: "6f76ce05"
+    readonly property string _adminPinHashSalt: "qgc-admin-lock-v1"
+    property bool adminModeActive: false
 
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
@@ -50,8 +58,33 @@ ApplicationWindow {
         indicatorDrawer.open()
     }
     function closeIndicatorDrawer() { indicatorDrawer.close() }
+    function handleAdminToolButtonClicked() {
+        if (adminModeActive) {
+            showToolSelectDialog()
+        }
+    }
+    function handleAdminToolButtonPressAndHold() {
+        if (adminModeActive) {
+            showToolSelectDialog()
+            return
+        }
+        adminPinDialogComponent.createObject(mainWindow).open()
+    }
+    function unlockAdminMode() {
+        adminModeActive = true
+        adminModeAutoLockTimer.restart()
+        openAdminToolMenuAfterUnlock.start()
+    }
+    function lockAdminMode() {
+        adminModeAutoLockTimer.stop()
+        adminModeActive = false
+        closeIndicatorDrawer()
+        if (rootStack.depth > 1) {
+            rootStack.pop()
+        }
+    }
     function showToolSelectDialog() {
-        if (allowViewSwitch()) {
+        if (adminModeActive && allowViewSwitch()) {
             showIndicatorDrawer(toolSelectComponent, null)
         }
     }
@@ -66,12 +99,21 @@ ApplicationWindow {
         })
     }
     function showAnalyzeTool() {
+        if (!adminModeActive) {
+            return
+        }
         showTool(qsTr("Analyze Tools"), "qrc:/qml/AnalyzeView.qml")
     }
     function showVehicleConfig() {
+        if (!adminModeActive) {
+            return
+        }
         showTool(qsTr("Vehicle Configuration"), "qrc:/qml/SetupView.qml")
     }
     function showSettingsTool(settingsPage) {
+        if (!adminModeActive) {
+            return
+        }
         showTool(qsTr("Application Settings"), "qrc:/qml/AppSettings.qml", settingsPage)
     }
     function showPlanView() {
@@ -90,6 +132,83 @@ ApplicationWindow {
 
     function _showMessageDialog(dialogTitle, dialogText) {
         showMessageDialog(dialogTitle, dialogText)
+    }
+
+    function _hashAdminPin(pin) {
+        var value = _adminPinHashSalt + ":" + pin
+        var hash = 0x811c9dc5
+        for (var i = 0; i < value.length; i++) {
+            hash ^= value.charCodeAt(i)
+            hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0
+        }
+        return ("00000000" + hash.toString(16)).slice(-8)
+    }
+
+    Timer {
+        id: adminModeAutoLockTimer
+        interval: _adminUnlockDurationMs
+        repeat: false
+        onTriggered: lockAdminMode()
+    }
+
+    Timer {
+        id: openAdminToolMenuAfterUnlock
+        interval: 0
+        repeat: false
+        onTriggered: showToolSelectDialog()
+    }
+
+    Component {
+        id: adminPinDialogComponent
+
+        QGCPopupDialog {
+            id: adminPinDialog
+            title: qsTr("管理者モード")
+            buttons: Dialog.Ok | Dialog.Cancel
+
+            onAccepted: {
+                if (_hashAdminPin(pinField.text) === _adminPinHash) {
+                    unlockAdminMode()
+                } else {
+                    errorLabel.visible = true
+                    pinField.text = ""
+                    pinField.forceActiveFocus()
+                    preventClose = true
+                }
+            }
+
+            ColumnLayout {
+                width: Math.min(mainWindow.width * 0.78, ScreenTools.defaultFontPixelWidth * 34)
+                spacing: ScreenTools.defaultFontPixelHeight / 2
+
+                QGCLabel {
+                    Layout.fillWidth: true
+                    text: qsTr("管理者PINを入力してください。")
+                    wrapMode: Text.WordWrap
+                }
+
+                QGCTextField {
+                    id: pinField
+                    Layout.fillWidth: true
+                    echoMode: TextInput.Password
+                    numericValuesOnly: true
+                    inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhSensitiveData
+                    placeholderText: qsTr("PIN")
+                    Component.onCompleted: forceActiveFocus()
+                    Keys.onReturnPressed: adminPinDialog._accept()
+                    Keys.onEnterPressed: adminPinDialog._accept()
+                }
+
+                QGCLabel {
+                    id: errorLabel
+                    Layout.fillWidth: true
+                    visible: false
+                    text: qsTr("PINが正しくありません。")
+                    color: qgcPal.colorRed
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
     }
 
     Component {
