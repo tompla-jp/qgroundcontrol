@@ -7,6 +7,7 @@
 #pragma once
 
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QHash>
 #include <QtCore/QMetaType>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
@@ -123,6 +124,7 @@ private:
     QTimer _watchdogTimer;
     WatchdogState _mainWatch;
     WatchdogState _subWatch;
+    QHash<QGstReceiver*, QString> _pendingRestartUris;
     QSet<QGstReceiver*> _restartBlock;
     QSet<QGstReceiver*> _startingReceivers;
 };

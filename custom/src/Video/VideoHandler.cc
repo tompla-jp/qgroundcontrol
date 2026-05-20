@@ -19,7 +19,7 @@
 #endif
 
 namespace {
-constexpr int kWatchdogIntervalMs = 300;
+constexpr int kWatchdogIntervalMs = 1000;
 constexpr int kFreezeThresholdMs = 2500;
 constexpr int kFreezeGraceMs = 800;
 constexpr int kRecoveryCooldownMs = 2000;
@@ -64,7 +64,7 @@ QGC_LOGGING_CATEGORY(VideoHandlerLog, "gcs.custom.videohandler")
 VideoHandler::VideoHandler(QObject *parent)
     : QObject(parent)
 {
-    qputenv("GST_DEBUG", "2");
+    qputenv("GST_DEBUG", "1");
     _startupTrace(QStringLiteral("VideoHandler ctor"));
     auto core = QGCCorePlugin::instance();
     if (core) {
@@ -340,7 +340,12 @@ void VideoHandler::_setupReceiver(QGstReceiver *receiver, bool isMain)
         if (status == VideoReceiver::STATUS_INVALID_URL || status == VideoReceiver::STATUS_INVALID_STATE) {
             return;
         }
-        _restartReceiver(receiver, receiver->uri());
+        _startupTrace(QStringLiteral("VideoHandler start failed %1, waiting for scheduled retry")
+                          .arg(isMain ? QStringLiteral("main") : QStringLiteral("sub")));
+        if (!receiver->uri().isEmpty()) {
+            _restartBlock.insert(receiver);
+            receiver->stop();
+        }
     });
 
     connect(receiver, &VideoReceiver::onStopComplete, this, [this, receiver, isMain](VideoReceiver::STATUS status) {
@@ -354,19 +359,15 @@ void VideoHandler::_setupReceiver(QGstReceiver *receiver, bool isMain)
             _updateSubStreamActive(false);
         }
         if (_restartBlock.remove(receiver)) {
+            _pendingRestartUris.remove(receiver);
             return;
         }
-        if (status == VideoReceiver::STATUS_INVALID_URL) {
-            return;
+        if (_pendingRestartUris.contains(receiver)) {
+            const QString pendingUri = _pendingRestartUris.take(receiver);
+            if (!pendingUri.isEmpty()) {
+                _startReceiver(receiver, pendingUri);
+            }
         }
-        if (receiver->uri().isEmpty() || !receiver->widget()) {
-            return;
-        }
-        _ensureSink(receiver, isMain);
-        if (!receiver->sink()) {
-            return;
-        }
-        receiver->start(5);
     });
 
     connect(receiver, &VideoReceiver::streamingChanged, this, [this, isMain](bool active) {
@@ -418,6 +419,7 @@ void VideoHandler::_stopReceiver(QGstReceiver *receiver)
         return;
     }
     _startingReceivers.remove(receiver);
+    _pendingRestartUris.remove(receiver);
     if (!receiver->uri().isEmpty()) {
         receiver->stop();
     }
@@ -429,6 +431,7 @@ void VideoHandler::_cleanupReceiver(QGstReceiver *receiver)
         return;
     }
     _startingReceivers.remove(receiver);
+    _pendingRestartUris.remove(receiver);
     if (!receiver->uri().isEmpty()) {
         _restartBlock.insert(receiver);
         receiver->stop();
@@ -724,6 +727,7 @@ void VideoHandler::_restartReceiver(QGstReceiver *receiver, const QString &uri)
         return;
     }
     if (receiver->started()) {
+        _pendingRestartUris.insert(receiver, uri);
         receiver->stop();
         return;
     }

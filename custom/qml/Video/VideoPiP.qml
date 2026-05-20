@@ -17,7 +17,18 @@ Item {
     readonly property bool _displaySwapped: _hasHandler ? videoHandler.displaySwapped : false
     readonly property bool _streaming: _hasHandler ? (_displaySwapped ? videoHandler.mainStreaming : videoHandler.subStreaming) : false
     readonly property bool _hasUrl: url && url.length > 0
+    readonly property int _retryDelayMinMs: 10000
+    readonly property int _retryDelayMaxMs: 30000
+    property int _retryDelayMs: _retryDelayMinMs
     visible: videoHandler.subUrl !== ""
+
+    on_StreamingChanged: {
+        if (_streaming) {
+            _retryDelayMs = _retryDelayMinMs
+        }
+    }
+
+    on_HasUrlChanged: _retryDelayMs = _retryDelayMinMs
 
     signal swapRequested()
 
@@ -81,7 +92,7 @@ Item {
 
     // ストリーム再試行
     Timer {
-        interval: 3000
+        interval: root._retryDelayMs
         running: _hasHandler && _hasUrl && !_streaming
         repeat: true
         onTriggered: {
@@ -92,6 +103,7 @@ Item {
                     videoHandler.restartSubStream()
                 }
             }
+            root._retryDelayMs = Math.min(root._retryDelayMaxMs, root._retryDelayMs * 2)
         }
     }
 
