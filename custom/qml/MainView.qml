@@ -813,12 +813,12 @@ ApplicationWindow {
                         readonly property real cameraIconOffsetY: 0
                         readonly property real cameraControlExtraWidth: Screen.pixelDensity * 6
                         readonly property real cameraControlExtraHeight: Screen.pixelDensity * 2.5
-                        readonly property string brakeParamName: "COM_OBS_AVOID"
+                        readonly property string brakeParamName: "CP_DIST"
                         readonly property bool brakeParamControllerActive: !!activeVehicle && activeVehicle.parameterManager && activeVehicle.parameterManager.parametersReady
                         readonly property var brakeParamController: brakeParamControllerLoader.item ? brakeParamControllerLoader.item.controller : null
                         property Fact brakeParamFact: brakeParamController && brakeParamController.parameterExists(-1, brakeParamName) ? brakeParamController.getParameterFact(-1, brakeParamName, false) : null
                         readonly property bool brakeParamAvailable: brakeParamFact !== null
-                        readonly property bool brakeEnabled: brakeParamAvailable && Number(brakeParamFact.rawValue) !== 0
+                        readonly property bool brakeEnabled: brakeParamAvailable && Number(brakeParamFact.rawValue) >= 0
                         readonly property color brakeActiveBackground: "#f5c84c"
                         readonly property color brakeInactiveBackground: Qt.rgba(0.34, 0.34, 0.34, 0.88)
                         readonly property color brakeActiveTextColor: "#1f1f1f"
