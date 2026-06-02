@@ -15,6 +15,85 @@ using namespace mavlink;
 #endif
 
 
+TEST(custom, CUSMVL_SAFE_SHUTDOWN)
+{
+    mavlink::mavlink_message_t msg;
+    mavlink::MsgMap map1(msg);
+    mavlink::MsgMap map2(msg);
+
+    mavlink::custom::msg::CUSMVL_SAFE_SHUTDOWN packet_in{};
+    packet_in.request_id = 963497464;
+    packet_in.target_system = 17;
+    packet_in.target_component = 84;
+    packet_in.confirmation = 151;
+    packet_in.shutdown_type = 218;
+    packet_in.reason = to_char_array("IJKLMNOPQRSTUVWXYZABCDEFGHIJKLM");
+
+    mavlink::custom::msg::CUSMVL_SAFE_SHUTDOWN packet1{};
+    mavlink::custom::msg::CUSMVL_SAFE_SHUTDOWN packet2{};
+
+    packet1 = packet_in;
+
+    //std::cout << packet1.to_yaml() << std::endl;
+
+    packet1.serialize(map1);
+
+    mavlink::mavlink_finalize_message(&msg, 1, 1, packet1.MIN_LENGTH, packet1.LENGTH, packet1.CRC_EXTRA);
+
+    packet2.deserialize(map2);
+
+    EXPECT_EQ(packet1.request_id, packet2.request_id);
+    EXPECT_EQ(packet1.target_system, packet2.target_system);
+    EXPECT_EQ(packet1.target_component, packet2.target_component);
+    EXPECT_EQ(packet1.confirmation, packet2.confirmation);
+    EXPECT_EQ(packet1.shutdown_type, packet2.shutdown_type);
+    EXPECT_EQ(packet1.reason, packet2.reason);
+}
+
+#ifdef TEST_INTEROP
+TEST(custom_interop, CUSMVL_SAFE_SHUTDOWN)
+{
+    mavlink_message_t msg;
+
+    // to get nice print
+    memset(&msg, 0, sizeof(msg));
+
+    mavlink_cusmvl_safe_shutdown_t packet_c {
+         963497464, 17, 84, 151, 218, "IJKLMNOPQRSTUVWXYZABCDEFGHIJKLM"
+    };
+
+    mavlink::custom::msg::CUSMVL_SAFE_SHUTDOWN packet_in{};
+    packet_in.request_id = 963497464;
+    packet_in.target_system = 17;
+    packet_in.target_component = 84;
+    packet_in.confirmation = 151;
+    packet_in.shutdown_type = 218;
+    packet_in.reason = to_char_array("IJKLMNOPQRSTUVWXYZABCDEFGHIJKLM");
+
+    mavlink::custom::msg::CUSMVL_SAFE_SHUTDOWN packet2{};
+
+    mavlink_msg_cusmvl_safe_shutdown_encode(1, 1, &msg, &packet_c);
+
+    // simulate message-handling callback
+    [&packet2](const mavlink_message_t *cmsg) {
+        MsgMap map2(cmsg);
+
+        packet2.deserialize(map2);
+    } (&msg);
+
+    EXPECT_EQ(packet_in.request_id, packet2.request_id);
+    EXPECT_EQ(packet_in.target_system, packet2.target_system);
+    EXPECT_EQ(packet_in.target_component, packet2.target_component);
+    EXPECT_EQ(packet_in.confirmation, packet2.confirmation);
+    EXPECT_EQ(packet_in.shutdown_type, packet2.shutdown_type);
+    EXPECT_EQ(packet_in.reason, packet2.reason);
+
+#ifdef PRINT_MSG
+    PRINT_MSG(msg);
+#endif
+}
+#endif
+
 TEST(custom, QVIO_STATUS)
 {
     mavlink::mavlink_message_t msg;

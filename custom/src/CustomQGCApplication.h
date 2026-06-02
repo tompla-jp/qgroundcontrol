@@ -26,6 +26,10 @@ class CustomQGCApplication : public QObject
     Q_PROPERTY(VideoHandler *videoHandler READ videoHandler CONSTANT)
     Q_PROPERTY(QString statusOverlayMessage READ statusOverlayMessage NOTIFY statusOverlayChanged)
     Q_PROPERTY(bool statusOverlayVisible READ statusOverlayVisible NOTIFY statusOverlayChanged)
+    Q_PROPERTY(QString primaryLinkEndpoint READ primaryLinkEndpoint NOTIFY primaryLinkEndpointChanged)
+    Q_PROPERTY(QString safeShutdownStatus READ safeShutdownStatus NOTIFY safeShutdownStateChanged)
+    Q_PROPERTY(bool safeShutdownPending READ safeShutdownPending NOTIFY safeShutdownStateChanged)
+    Q_PROPERTY(bool safeShutdownStatusError READ safeShutdownStatusError NOTIFY safeShutdownStateChanged)
 
 public:
     explicit CustomQGCApplication(QObject *parent = nullptr);
@@ -37,16 +41,23 @@ public:
     VideoHandler *videoHandler() const { return _videoHandler; }
     QString statusOverlayMessage() const { return _statusOverlayMessage; }
     bool statusOverlayVisible() const { return !_statusOverlayMessage.isEmpty(); }
+    QString primaryLinkEndpoint() const { return _primaryLinkEndpoint; }
+    QString safeShutdownStatus() const { return _safeShutdownStatus; }
+    bool safeShutdownPending() const { return _safeShutdownPending; }
+    bool safeShutdownStatusError() const { return _safeShutdownStatusError; }
 
 public slots:
     void recordStart();
     void recordStop();
     void snapshot();
     void swapCamera();
+    bool requestSafeShutdown();
 
 signals:
     void vioChanged();
     void statusOverlayChanged();
+    void primaryLinkEndpointChanged();
+    void safeShutdownStateChanged();
 
 private slots:
     void _activeVehicleChanged(Vehicle *vehicle);
@@ -56,10 +67,17 @@ private slots:
     void _persistUrls();
     void _bindVideoSettings();
     void _handleTransientStatusOverlayTimeout();
+    void _updatePrimaryLinkEndpoint();
+    void _handleCommunicationLostChanged(bool communicationLost);
+    void _handleSafeShutdownTimeout();
 
 private:
+    QString _endpointForLink(LinkInterface *link) const;
+    bool _safeShutdownConfirmed() const;
     bool _parseStatusOverlayMessage(const QString &text, QString &displayMessage, bool &persistent) const;
     QString _translatedStatusText(const QString &code, QChar level, int genre) const;
+    void _checkSafeShutdownResult();
+    void _setSafeShutdownStatus(const QString &message, bool pending, bool error, bool showToast);
     void _setStatusOverlayMessage(const QString &message);
     void _clearStatusOverlay();
 
@@ -70,5 +88,12 @@ private:
     QSettings _settings;
     QString _statusOverlayMessage;
     QString _persistentStatusOverlayMessage;
+    QString _primaryLinkEndpoint;
+    QString _safeShutdownStatus;
+    QString _safeShutdownLinkName;
     QTimer _statusOverlayTimer;
+    QTimer _safeShutdownTimer;
+    int _safeShutdownVehicleId = -1;
+    bool _safeShutdownPending = false;
+    bool _safeShutdownStatusError = false;
 };

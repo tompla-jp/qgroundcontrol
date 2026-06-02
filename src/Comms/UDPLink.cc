@@ -372,6 +372,10 @@ void UDPWorker::disconnectLink()
     }
 
     _sessionTargets.clear();
+    if (!_remoteEndpoint.isEmpty()) {
+        _remoteEndpoint.clear();
+        emit remoteEndpointChanged(_remoteEndpoint);
+    }
 }
 
 void UDPWorker::writeData(const QByteArray &data)
@@ -455,6 +459,11 @@ void UDPWorker::_onSocketReadyRead()
 
         const bool ipLocal = datagramIn.senderAddress().isLoopback() || _localAddresses.contains(datagramIn.senderAddress());
         const QHostAddress senderAddress = ipLocal ? QHostAddress(QHostAddress::SpecialAddress::LocalHost) : datagramIn.senderAddress();
+        const QString remoteEndpoint = senderAddress.toString() + ":" + QString::number(datagramIn.senderPort());
+        if (_remoteEndpoint != remoteEndpoint) {
+            _remoteEndpoint = remoteEndpoint;
+            emit remoteEndpointChanged(_remoteEndpoint);
+        }
 
         QMutexLocker locker(&_sessionTargetsMutex);
         if (!containsTarget(_sessionTargets, senderAddress, datagramIn.senderPort())) {
@@ -578,6 +587,7 @@ UDPLink::UDPLink(SharedLinkConfigurationPtr &config, QObject *parent)
     (void) connect(_worker, &UDPWorker::errorOccurred, this, &UDPLink::_onErrorOccurred, Qt::QueuedConnection);
     (void) connect(_worker, &UDPWorker::dataReceived, this, &UDPLink::_onDataReceived, Qt::QueuedConnection);
     (void) connect(_worker, &UDPWorker::dataSent, this, &UDPLink::_onDataSent, Qt::QueuedConnection);
+    (void) connect(_worker, &UDPWorker::remoteEndpointChanged, this, &UDPLink::_onRemoteEndpointChanged, Qt::QueuedConnection);
 
     _workerThread->start();
 }
@@ -633,6 +643,16 @@ void UDPLink::_onDataReceived(const QByteArray &data)
 void UDPLink::_onDataSent(const QByteArray &data)
 {
     emit bytesSent(this, data);
+}
+
+void UDPLink::_onRemoteEndpointChanged(const QString &endpoint)
+{
+    if (_remoteEndpoint == endpoint) {
+        return;
+    }
+
+    _remoteEndpoint = endpoint;
+    emit remoteEndpointChanged();
 }
 
 void UDPLink::_writeBytes(const QByteArray& bytes)

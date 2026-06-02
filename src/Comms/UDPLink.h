@@ -132,6 +132,7 @@ signals:
     void errorOccurred(const QString &errorString);
     void dataReceived(const QByteArray &data);
     void dataSent(const QByteArray &data);
+    void remoteEndpointChanged(const QString &endpoint);
 
 private slots:
     void _onSocketConnected();
@@ -145,6 +146,7 @@ private:
     QUdpSocket *_socket = nullptr;
     QMutex _sessionTargetsMutex;
     QList<std::shared_ptr<UDPClient>> _sessionTargets;
+    QString _remoteEndpoint;
     bool _isConnected = false;
     bool _errorEmitted = false;
     QSet<QHostAddress> _localAddresses;
@@ -173,6 +175,10 @@ public:
     bool isConnected() const override;
     void disconnect() override;
     bool isSecureConnection() const override;
+    QString remoteEndpoint() const { return _remoteEndpoint; }
+
+signals:
+    void remoteEndpointChanged();
 
 protected:
     bool _connect() override;
@@ -184,9 +190,11 @@ private slots:
     void _onErrorOccurred(const QString &errorString);
     void _onDataReceived(const QByteArray &data);
     void _onDataSent(const QByteArray &data);
+    void _onRemoteEndpointChanged(const QString &endpoint);
 
 private:
     const UDPConfiguration *_udpConfig = nullptr;
     UDPWorker *_worker = nullptr;
     QThread *_workerThread = nullptr;
+    QString _remoteEndpoint;
 };

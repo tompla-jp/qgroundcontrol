@@ -12,7 +12,6 @@ Item {
     property string label: ""
     property var receiver: null
     property alias surfaceItem: videoSurface
-    property bool showUrlInput: false
     readonly property bool _hasHandler: typeof videoHandler !== "undefined" && videoHandler !== null
     readonly property bool _displaySwapped: _hasHandler ? videoHandler.displaySwapped : false
     readonly property bool _streaming: _hasHandler ? (_displaySwapped ? videoHandler.mainStreaming : videoHandler.subStreaming) : false
@@ -20,7 +19,7 @@ Item {
     readonly property int _retryDelayMinMs: 10000
     readonly property int _retryDelayMaxMs: 30000
     property int _retryDelayMs: _retryDelayMinMs
-    visible: videoHandler.subUrl !== ""
+    visible: _hasHandler && videoHandler.subUrl !== ""
 
     on_StreamingChanged: {
         if (_streaming) {
@@ -120,84 +119,6 @@ Item {
     MouseArea {
         anchors.fill: videoFrame
         onClicked: root.swapRequested()
-    }
-
-    // 設定ボタン（URL入力ポップアップを開閉）
-    QGCButton {
-        id: settingsButton
-        text: qsTr("⚙")
-        anchors.left: videoFrame.left
-        anchors.bottom: videoFrame.top
-        anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.4
-        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.35
-        padding: 4
-        scale: 0.6
-        z: 4
-        onClicked: root.showUrlInput = !root.showUrlInput
-    }
-
-    // URL input popup
-    Rectangle {
-        id: urlPopup
-        visible: root.showUrlInput
-        color: "#000000"
-        opacity: 0.85
-        radius: 6
-        anchors.right: videoFrame.left
-        anchors.verticalCenter: videoFrame.verticalCenter
-        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.6
-        width: 260
-        z: 4
-        // 内容が収まるようポップアップ高さを明示
-        height: urlPopupColumn.implicitHeight + 16
-        border.color: "#ffffff"
-        border.width: 1
-
-        ColumnLayout {
-            id: urlPopupColumn
-            anchors.fill: parent
-            anchors.margins: 8
-            spacing: 12
-
-            TextField {
-                id: pipUrlField
-                text: videoHandler.subUrl
-                color: "#ffffff"
-                placeholderText: qsTr("rtsp://...")
-                selectByMouse: true
-                Layout.fillWidth: true
-                Layout.topMargin: 6    // 入力欄を上寄せしつつ少し余白
-                height: ScreenTools.defaultFontPixelHeight * 2.2
-                background: Rectangle {
-                    radius: 4
-                    color: "#222222"
-                    border.color: "#555555"
-                }
-                onAccepted: {
-                    videoHandler.subUrl = text
-                    root.showUrlInput = false
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-                Layout.topMargin: 12
-                QGCButton {
-                    text: qsTr("Apply")
-                    Layout.fillWidth: true
-                    onClicked: {
-                        videoHandler.subUrl = pipUrlField.text
-                        root.showUrlInput = false
-                    }
-                }
-                QGCButton {
-                    text: qsTr("Cancel")
-                    Layout.fillWidth: true
-                    onClicked: root.showUrlInput = false
-                }
-            }
-        }
     }
 
     RowLayout {

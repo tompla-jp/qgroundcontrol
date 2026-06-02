@@ -24,9 +24,11 @@ ApplicationWindow {
     onClosing: Qt.quit()
 
     readonly property var activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
-    property bool showPipAddPanel: false
+    property bool showCustomSettingsPanel: false
+    property bool showPipUrlPanel: false
     readonly property bool _hasVideoHandler: typeof videoHandler !== "undefined" && videoHandler !== null
     readonly property bool _displaySwapped: _hasVideoHandler ? videoHandler.displaySwapped : false
+    readonly property bool _pipVisible: _hasVideoHandler && videoHandler.subUrl !== ""
     readonly property real _topHudInset: ScreenTools.isMobile ? ScreenTools.defaultFontPixelHeight * 0.6 : 0
     readonly property real _topHudExtraHeight: ScreenTools.isMobile ? ScreenTools.defaultFontPixelHeight * 0.4 : 0
     readonly property real _topHudHeight: ScreenTools.toolbarHeight + _topHudExtraHeight
@@ -52,6 +54,10 @@ ApplicationWindow {
         indicatorDrawer.open()
     }
     function closeIndicatorDrawer() { indicatorDrawer.close() }
+    function closeCustomSettingsPanel() {
+        showCustomSettingsPanel = false
+        showPipUrlPanel = false
+    }
     function showToolSelectDialog() {
         if (allowViewSwitch()) {
             showIndicatorDrawer(toolSelectComponent, null)
@@ -1185,152 +1191,275 @@ ApplicationWindow {
                     onSwapRequested: customApp.swapCamera()
                 }
 
-                // PiP非表示時の追加ボタン＋URL入力パネル
+                MouseArea {
+                    anchors.fill: parent
+                    visible: showCustomSettingsPanel
+                    enabled: visible
+                    z: 899
+                    onClicked: closeCustomSettingsPanel()
+                }
+
                 Item {
-                    id: pipAddContainer
+                    id: customSettingsContainer
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.margins: ScreenTools.defaultFontPixelHeight * 1.5
-                    anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 8
-                    visible: _hasVideoHandler && videoHandler.subUrl === ""
-                    width: 340
-                    // Sub URLのラベル/入力欄を入力欄2.5個分だけ下げる
-                    property real subUrlInputHeight: ScreenTools.defaultFontPixelHeight * 2.5
-                    property real subUrlDropHeight: subUrlInputHeight * 2.5
-                    property real subUrlVerticalShift: ScreenTools.defaultFontPixelHeight * 0.5
-                    property real panelBottomPadding: ScreenTools.defaultFontPixelHeight * 0.75
-                    height: showPipAddPanel
-                            ? pipAddPanel.height + pipAddPanel.anchors.bottomMargin + pipButtonRow.height + pipButtonRow.anchors.bottomMargin
-                            : pipButtonRow.height + pipButtonRow.anchors.bottomMargin
+                    anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 4
+                    anchors.bottomMargin: _pipVisible
+                                          ? _pipHeight + ScreenTools.defaultFontPixelHeight * 2.0
+                                          : ScreenTools.defaultFontPixelHeight * 1.5
+                    width: Math.min(mainWindow.width - ScreenTools.defaultFontPixelWidth * 4,
+                                    ScreenTools.defaultFontPixelWidth * 46)
+                    height: settingsToggleButton.height + (showCustomSettingsPanel ? settingsPanel.height + panelSpacing : 0)
                     z: 900
 
-                    // 入力パネル背景（開いている間のみ表示）
+                    property real panelSpacing: ScreenTools.defaultFontPixelHeight * 0.7
+
+                    QGCButton {
+                        id: settingsToggleButton
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        text: qsTr("設定")
+                        width: ScreenTools.defaultFontPixelWidth * 14
+                        height: ScreenTools.defaultFontPixelHeight * 2.4
+                        padding: 0
+                        onClicked: {
+                            showCustomSettingsPanel = !showCustomSettingsPanel
+                            if (!showCustomSettingsPanel) {
+                                closeCustomSettingsPanel()
+                            } else if (_hasVideoHandler) {
+                                pipUrlInput.text = videoHandler.subUrl
+                            }
+                        }
+                    }
+
                     Rectangle {
-                        anchors.fill: parent
-                        radius: 12
-                        visible: showPipAddPanel
+                        id: settingsPanel
+                        visible: showCustomSettingsPanel
+                        anchors.right: parent.right
+                        anchors.bottom: settingsToggleButton.top
+                        anchors.bottomMargin: customSettingsContainer.panelSpacing
+                        width: parent.width
+                        height: settingsPanelContent.implicitHeight + ScreenTools.defaultFontPixelHeight
+                        radius: 8
                         color: "#202020"
                         border.color: "#4a4a4a"
                         border.width: 1
-                        opacity: 0.9
-                        z: 0
-                    }
-
-                    Row {
-                        id: pipButtonRow
-                        property real buttonSizeScale: 0.55   // 少しだけ縮小
-                        property real buttonFontScale: 0.6    // テキストサイズは従来のまま
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 0.8
-                        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 4
-                        spacing: ScreenTools.defaultFontPixelWidth * 2.5
-
-                        QGCButton {
-                            id: pipConfirmButton
-                            text: qsTr("決定")
-                            width: ScreenTools.defaultFontPixelWidth * 16 * pipButtonRow.buttonSizeScale
-                            height: ScreenTools.defaultFontPixelHeight * 3.2 * pipButtonRow.buttonSizeScale
-                            font.pointSize: ScreenTools.mediumFontPointSize * pipButtonRow.buttonFontScale * 1.1
-                            visible: showPipAddPanel
-                            padding: 0
-                            contentItem: Text {
-                                text: pipConfirmButton.text
-                                anchors.centerIn: parent
-                                color: pipConfirmButton.enabled ? qgcPal.text : qgcPal.buttonDisabledText
-                                font: pipConfirmButton.font
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: {
-                                if (_hasVideoHandler) {
-                                    videoHandler.subUrl = subUrlInput.text
-                                }
-                                showPipAddPanel = false
-                            }
-                        }
-
-                        QGCButton {
-                            id: pipAddButton
-                            text: qsTr("PiP追加")
-                            width: ScreenTools.defaultFontPixelWidth * 16 * pipButtonRow.buttonSizeScale
-                            height: ScreenTools.defaultFontPixelHeight * 3.2 * pipButtonRow.buttonSizeScale
-                            font.pointSize: ScreenTools.mediumFontPointSize * pipButtonRow.buttonFontScale * 1.1
-                            padding: 0
-                            contentItem: Text {
-                                text: pipAddButton.text
-                                anchors.centerIn: parent
-                                color: pipAddButton.enabled ? qgcPal.text : qgcPal.buttonDisabledText
-                                font: pipAddButton.font
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            onClicked: showPipAddPanel = !showPipAddPanel
-                        }
-                    }
-
-                    Rectangle {
-                        id: pipAddPanel
-                        visible: showPipAddPanel
-                        anchors.right: parent.right
-                        anchors.bottom: pipButtonRow.top
-                        anchors.bottomMargin: ScreenTools.defaultFontPixelHeight * 5 - pipAddContainer.subUrlDropHeight
-                        width: 320
-                        height: pipAddContent.implicitHeight + pipAddContent.anchors.topMargin + pipAddContainer.panelBottomPadding
-                        radius: 10
-                        color: "transparent"
-                        border.color: "transparent"
+                        opacity: 0.95
                         z: 999
-                        onVisibleChanged: {
-                            if (!visible && _hasVideoHandler) {
-                                // パネルを閉じるタイミングでも保存
-                                videoHandler.subUrl = subUrlInput.text
-                            }
-                        }
 
                         ColumnLayout {
-                            id: pipAddContent
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 14
-                            anchors.topMargin: pipAddContainer.subUrlVerticalShift + 14
-                            spacing: 8
+                            id: settingsPanelContent
+                            anchors.fill: parent
+                            anchors.margins: ScreenTools.defaultFontPixelHeight * 0.55
+                            spacing: ScreenTools.defaultFontPixelHeight * 0.35
 
-                            QGCLabel {
-                                text: qsTr("Sub URL")
-                                color: qgcPal.text
+                            RowLayout {
                                 Layout.fillWidth: true
-                            }
-                            TextField {
-                                id: subUrlInput
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: pipAddContainer.subUrlInputHeight
-                                text: _hasVideoHandler ? videoHandler.subUrl : ""
-                                placeholderText: qsTr("rtsp://...")
-                                color: qgcPal.text
-                                onAccepted: {
-                                    if (_hasVideoHandler) {
-                                        videoHandler.subUrl = text
+
+                                QGCLabel {
+                                    text: qsTr("設定")
+                                    color: qgcPal.text
+                                    font.bold: true
+                                    font.pointSize: ScreenTools.defaultFontPointSize
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                Rectangle {
+                                    color: "#343434"
+                                    radius: 5
+                                    border.color: "#5a5a5a"
+                                    border.width: 1
+                                    Layout.preferredWidth: ScreenTools.defaultFontPixelHeight * 1.75
+                                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.75
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+
+                                    QGCLabel {
+                                        anchors.fill: parent
+                                        text: qsTr("×")
+                                        color: qgcPal.text
+                                        font.bold: true
+                                        font.pixelSize: ScreenTools.defaultFontPixelHeight * 1.05
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: closeCustomSettingsPanel()
                                     }
                                 }
-                                onEditingFinished: {
-                                    if (_hasVideoHandler) {
-                                        videoHandler.subUrl = text
+                            }
+
+                            Rectangle {
+                                color: "#3d3d3d"
+                                height: 1
+                                Layout.fillWidth: true
+                            }
+
+                            Rectangle {
+                                color: "#262626"
+                                radius: 6
+                                border.color: "#555555"
+                                border.width: 1
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(primaryLinkColumn.implicitHeight + ScreenTools.defaultFontPixelHeight * 1.25,
+                                                                 ScreenTools.defaultFontPixelHeight * 4.2)
+
+                                ColumnLayout {
+                                    id: primaryLinkColumn
+                                    anchors.fill: parent
+                                    anchors.margins: ScreenTools.defaultFontPixelHeight * 0.65
+                                    spacing: ScreenTools.defaultFontPixelHeight * 0.25
+
+                                    QGCLabel {
+                                        text: qsTr("通信リンク")
+                                        color: "#b0bec5"
+                                        font.pointSize: ScreenTools.defaultFontPointSize
+                                        Layout.fillWidth: true
                                     }
-                                }
-                                background: Rectangle {
-                                    radius: 6
-                                    color: "#222222"
-                                    border.color: "#555555"
+
+                                    QGCLabel {
+                                        text: customApp.primaryLinkEndpoint && customApp.primaryLinkEndpoint.length > 0
+                                              ? customApp.primaryLinkEndpoint
+                                              : qsTr("未接続")
+                                        color: customApp.primaryLinkEndpoint && customApp.primaryLinkEndpoint.length > 0
+                                               ? qgcPal.text
+                                               : "#ffcc80"
+                                        font.bold: true
+                                        font.pointSize: ScreenTools.mediumFontPointSize
+                                        wrapMode: QGCLabel.WrapAnywhere
+                                        Layout.fillWidth: true
+                                    }
                                 }
                             }
 
-                            // 決定ボタンとの間隔を確保
-                            Item { Layout.fillWidth: true; Layout.preferredHeight: ScreenTools.defaultFontPixelHeight }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: ScreenTools.defaultFontPixelWidth
 
-                            // 下側に少し余白を確保（背景の縦サイズを抑えつつタップ余白を確保）
-                            Item { Layout.fillWidth: true; Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 1.25 }
+                                QGCButton {
+                                    text: showPipUrlPanel ? qsTr("RTSP設定を閉じる") : qsTr("RTSP設定")
+                                    enabled: _hasVideoHandler
+                                    Layout.fillWidth: true
+                                    onClicked: {
+                                        showPipUrlPanel = !showPipUrlPanel
+                                        if (showPipUrlPanel && _hasVideoHandler) {
+                                            pipUrlInput.text = videoHandler.subUrl
+                                        }
+                                    }
+                                }
+
+                                QGCButton {
+                                    text: qsTr("PiPをクリア")
+                                    visible: _hasVideoHandler && videoHandler.subUrl !== ""
+                                    Layout.fillWidth: true
+                                    onClicked: {
+                                        videoHandler.subUrl = ""
+                                        pipUrlInput.text = ""
+                                        showPipUrlPanel = false
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                visible: showPipUrlPanel
+                                Layout.fillWidth: true
+                                spacing: ScreenTools.defaultFontPixelHeight * 0.45
+
+                                QGCLabel {
+                                    text: qsTr("PiP URL")
+                                    color: "#b0bec5"
+                                    Layout.fillWidth: true
+                                }
+
+                                TextField {
+                                    id: pipUrlInput
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: ScreenTools.defaultFontPixelHeight * 2.5
+                                    text: _hasVideoHandler ? videoHandler.subUrl : ""
+                                    placeholderText: qsTr("rtsp://...")
+                                    color: qgcPal.text
+                                    selectByMouse: true
+                                    onAccepted: {
+                                        if (_hasVideoHandler) {
+                                            videoHandler.subUrl = text
+                                            showPipUrlPanel = false
+                                        }
+                                    }
+                                    background: Rectangle {
+                                        radius: 6
+                                        color: "#222222"
+                                        border.color: "#555555"
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: ScreenTools.defaultFontPixelWidth
+
+                                    QGCButton {
+                                        text: qsTr("適用")
+                                        Layout.fillWidth: true
+                                        onClicked: {
+                                            if (_hasVideoHandler) {
+                                                videoHandler.subUrl = pipUrlInput.text
+                                            }
+                                            showPipUrlPanel = false
+                                        }
+                                    }
+
+                                    QGCButton {
+                                        text: qsTr("キャンセル")
+                                        Layout.fillWidth: true
+                                        onClicked: {
+                                            if (_hasVideoHandler) {
+                                                pipUrlInput.text = videoHandler.subUrl
+                                            }
+                                            showPipUrlPanel = false
+                                        }
+                                    }
+                                }
+                            }
+
+                            QGCButton {
+                                text: customApp.safeShutdownPending ? qsTr("確認中...") : qsTr("VOXLをシャットダウン")
+                                enabled: activeVehicle !== null && !customApp.safeShutdownPending
+                                Layout.fillWidth: true
+                                onClicked: {
+                                    showMessageDialog(
+                                        qsTr("VOXLシャットダウン"),
+                                        qsTr("シャットダウンします。飛行中や作業中でないことを確認してください。"),
+                                        Dialog.Ok | Dialog.Cancel,
+                                        function() { customApp.requestSafeShutdown() }
+                                    )
+                                }
+                            }
+
+                            Rectangle {
+                                visible: customApp.safeShutdownStatus && customApp.safeShutdownStatus.length > 0
+                                color: "#202020"
+                                radius: 6
+                                border.width: 1
+                                border.color: customApp.safeShutdownStatusError
+                                              ? "#ff8a80"
+                                              : (customApp.safeShutdownPending ? "#ffd166" : "#8bd49c")
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: safeShutdownStatusLabel.implicitHeight + ScreenTools.defaultFontPixelHeight
+
+                                QGCLabel {
+                                    id: safeShutdownStatusLabel
+                                    anchors.fill: parent
+                                    anchors.margins: ScreenTools.defaultFontPixelHeight * 0.5
+                                    text: customApp.safeShutdownStatus
+                                    color: customApp.safeShutdownStatusError
+                                           ? "#ff8a80"
+                                           : (customApp.safeShutdownPending ? "#ffd166" : "#8bd49c")
+                                    font.pointSize: ScreenTools.smallFontPointSize
+                                    wrapMode: QGCLabel.WordWrap
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
                         }
                     }
                 }

@@ -6,16 +6,22 @@
 
 #include "CustomQGCApplication.h"
 
+#include "LinkConfiguration.h"
+#include "MAVLinkProtocol.h"
 #include "MultiVehicleManager.h"
 #include "QGCApplication.h"
 #include "QGCLoggingCategory.h"
 #include "SettingsManager.h"
 #include "Settings/VideoSettings.h"
+#include "TCPLink.h"
+#include "UDPLink.h"
 #include "Video/VideoHandler.h"
 #include "QVIOHandler.h"
+#include "VehicleLinkManager.h"
 
 #include <mavlink.h>
 
+#include <QtCore/QDateTime>
 #include <QtCore/QHash>
 #include <QtCore/QRegularExpression>
 
@@ -23,6 +29,7 @@ QGC_LOGGING_CATEGORY(CustomAppLog, "gcs.custom.application")
 
 namespace {
 constexpr int kStatusOverlayWarningMs = 7000;
+constexpr int kSafeShutdownConfirmTimeoutMs = 15000;
 
 QString cleanedStatusText(QString text)
 {
@@ -46,11 +53,16 @@ CustomQGCApplication::CustomQGCApplication(QObject *parent)
     _statusOverlayTimer.setInterval(kStatusOverlayWarningMs);
     connect(&_statusOverlayTimer, &QTimer::timeout, this, &CustomQGCApplication::_handleTransientStatusOverlayTimeout);
 
+    _safeShutdownTimer.setSingleShot(true);
+    _safeShutdownTimer.setInterval(kSafeShutdownConfirmTimeoutMs);
+    connect(&_safeShutdownTimer, &QTimer::timeout, this, &CustomQGCApplication::_handleSafeShutdownTimeout);
+
     _loadSavedUrls();
     _bindVideoSettings();
 
     connect(MultiVehicleManager::instance(), &MultiVehicleManager::activeVehicleChanged,
             this, &CustomQGCApplication::_activeVehicleChanged);
+    _activeVehicleChanged(MultiVehicleManager::instance()->activeVehicle());
 
     connect(&_qvioHandler, &QVIOHandler::qualityChanged, this, &CustomQGCApplication::vioChanged);
     connect(&_qvioHandler, &QVIOHandler::stateLabelChanged, this, &CustomQGCApplication::vioChanged);
@@ -102,11 +114,81 @@ void CustomQGCApplication::swapCamera()
     }
 }
 
+bool CustomQGCApplication::requestSafeShutdown()
+{
+    if (!_vehicle) {
+        _setSafeShutdownStatus(tr("機体に接続されていません。"), false, true, true);
+        return false;
+    }
+
+    VehicleLinkManager *const linkManager = _vehicle->vehicleLinkManager();
+    if (!linkManager) {
+        _setSafeShutdownStatus(tr("通信リンクが見つかりません。"), false, true, true);
+        return false;
+    }
+
+    const SharedLinkInterfacePtr sharedLink = linkManager->primaryLink().lock();
+    if (!sharedLink || !sharedLink->isConnected() || !sharedLink->mavlinkChannelIsSet()) {
+        _setSafeShutdownStatus(tr("primary linkが接続されていません。"), false, true, true);
+        return false;
+    }
+
+    const QString primaryLinkName = linkManager->primaryLinkName();
+    const QStringList linkNames = linkManager->linkNames();
+    const QStringList linkStatuses = linkManager->linkStatuses();
+    const int primaryLinkIndex = linkNames.indexOf(primaryLinkName);
+    const bool primaryLinkCommLost = primaryLinkIndex >= 0
+        && primaryLinkIndex < linkStatuses.count()
+        && !linkStatuses.at(primaryLinkIndex).isEmpty();
+    if (linkManager->communicationLost() || primaryLinkCommLost) {
+        _setSafeShutdownStatus(tr("primary linkが通信断になっています。"), false, true, true);
+        return false;
+    }
+
+    char reason[MAVLINK_MSG_CUSMVL_SAFE_SHUTDOWN_FIELD_REASON_LEN] = {};
+    qstrncpy(reason, "QGC safe shutdown", sizeof(reason));
+
+    mavlink_message_t msg;
+    const uint32_t requestId = static_cast<uint32_t>(QDateTime::currentMSecsSinceEpoch() & 0xffffffffu);
+    (void) mavlink_msg_cusmvl_safe_shutdown_pack_chan(
+        MAVLinkProtocol::instance()->getSystemId(),
+        MAVLinkProtocol::getComponentId(),
+        sharedLink->mavlinkChannel(),
+        &msg,
+        requestId,
+        0,
+        CUSMVL_COMPONENT_SAFE_SHUTDOWN,
+        1,
+        CUSMVL_SHUTDOWN_TYPE_SAFE,
+        reason
+    );
+
+    const bool sent = _vehicle->sendMessageOnLinkThreadSafe(sharedLink.get(), msg);
+    if (!sent) {
+        _setSafeShutdownStatus(tr("VOXLのシャットダウン要求を送信できませんでした。"), false, true, true);
+        return false;
+    }
+
+    _safeShutdownVehicleId = _vehicle->id();
+    _safeShutdownLinkName = primaryLinkName;
+    _setSafeShutdownStatus(tr("シャットダウン要求を送信しました。完了を確認しています。"), true, false, false);
+    _safeShutdownTimer.start();
+    _checkSafeShutdownResult();
+
+    return true;
+}
+
 void CustomQGCApplication::_activeVehicleChanged(Vehicle *vehicle)
 {
     if (_vehicle) {
         disconnect(_vehicle, &Vehicle::mavlinkMessageReceived, this, &CustomQGCApplication::_handleMavlinkMessage);
         disconnect(_vehicle, &Vehicle::textMessageReceived, this, &CustomQGCApplication::_handleTextMessage);
+        if (VehicleLinkManager *const linkManager = _vehicle->vehicleLinkManager()) {
+            disconnect(linkManager, &VehicleLinkManager::primaryLinkChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            disconnect(linkManager, &VehicleLinkManager::linkNamesChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            disconnect(linkManager, &VehicleLinkManager::linkStatusesChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            disconnect(linkManager, &VehicleLinkManager::communicationLostChanged, this, &CustomQGCApplication::_handleCommunicationLostChanged);
+        }
     }
 
     _vehicle = vehicle;
@@ -116,12 +198,167 @@ void CustomQGCApplication::_activeVehicleChanged(Vehicle *vehicle)
     if (_vehicle) {
         connect(_vehicle, &Vehicle::mavlinkMessageReceived, this, &CustomQGCApplication::_handleMavlinkMessage);
         connect(_vehicle, &Vehicle::textMessageReceived, this, &CustomQGCApplication::_handleTextMessage);
+        if (VehicleLinkManager *const linkManager = _vehicle->vehicleLinkManager()) {
+            connect(linkManager, &VehicleLinkManager::primaryLinkChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            connect(linkManager, &VehicleLinkManager::linkNamesChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            connect(linkManager, &VehicleLinkManager::linkStatusesChanged, this, &CustomQGCApplication::_updatePrimaryLinkEndpoint);
+            connect(linkManager, &VehicleLinkManager::communicationLostChanged, this, &CustomQGCApplication::_handleCommunicationLostChanged);
+        }
     }
+
+    _updatePrimaryLinkEndpoint();
 }
 
 void CustomQGCApplication::_handleMavlinkMessage(const mavlink_message_t &message)
 {
+    _updatePrimaryLinkEndpoint();
     _qvioHandler.updateFromMavlink(message);
+}
+
+void CustomQGCApplication::_updatePrimaryLinkEndpoint()
+{
+    QString endpoint;
+    if (_vehicle) {
+        if (VehicleLinkManager *const linkManager = _vehicle->vehicleLinkManager()) {
+            const SharedLinkInterfacePtr sharedLink = linkManager->primaryLink().lock();
+            endpoint = _endpointForLink(sharedLink.get());
+        }
+    }
+
+    if (_primaryLinkEndpoint != endpoint) {
+        _primaryLinkEndpoint = endpoint;
+        emit primaryLinkEndpointChanged();
+    }
+
+    _checkSafeShutdownResult();
+}
+
+QString CustomQGCApplication::_endpointForLink(LinkInterface *link) const
+{
+    if (!link) {
+        return QString();
+    }
+
+    if (const auto udpLink = qobject_cast<UDPLink*>(link)) {
+        const QString remoteEndpoint = udpLink->remoteEndpoint();
+        if (!remoteEndpoint.isEmpty()) {
+            return remoteEndpoint;
+        }
+    }
+
+    const SharedLinkConfigurationPtr config = link->linkConfiguration();
+    if (!config) {
+        return QString();
+    }
+
+    if (const auto tcpConfig = qobject_cast<TCPConfiguration*>(config.get())) {
+        const QString host = tcpConfig->host();
+        if (!host.isEmpty()) {
+            return QStringLiteral("%1:%2").arg(host).arg(tcpConfig->port());
+        }
+    }
+
+    if (const auto udpConfig = qobject_cast<UDPConfiguration*>(config.get())) {
+        const QStringList hosts = udpConfig->hostList();
+        if (!hosts.isEmpty()) {
+            return hosts.first();
+        }
+    }
+
+    return QString();
+}
+
+bool CustomQGCApplication::_safeShutdownConfirmed() const
+{
+    if (!_safeShutdownPending || _safeShutdownVehicleId < 0) {
+        return false;
+    }
+
+    if (!_vehicle) {
+        return true;
+    }
+
+    if (_vehicle->id() != _safeShutdownVehicleId) {
+        return false;
+    }
+
+    VehicleLinkManager *const linkManager = _vehicle->vehicleLinkManager();
+    if (!linkManager) {
+        return false;
+    }
+
+    if (linkManager->communicationLost()) {
+        return true;
+    }
+
+    if (!_safeShutdownLinkName.isEmpty()) {
+        const QStringList linkNames = linkManager->linkNames();
+        const int linkIndex = linkNames.indexOf(_safeShutdownLinkName);
+        if (linkIndex < 0) {
+            return true;
+        }
+
+        const QStringList linkStatuses = linkManager->linkStatuses();
+        if (linkIndex < linkStatuses.count() && !linkStatuses.at(linkIndex).isEmpty()) {
+            return true;
+        }
+    }
+
+    const SharedLinkInterfacePtr sharedLink = linkManager->primaryLink().lock();
+    return !sharedLink || !sharedLink->isConnected();
+}
+
+void CustomQGCApplication::_checkSafeShutdownResult()
+{
+    if (!_safeShutdownPending || !_safeShutdownConfirmed()) {
+        return;
+    }
+
+    _setSafeShutdownStatus(tr("VOXLのシャットダウンを確認しました。"), false, false, false);
+}
+
+void CustomQGCApplication::_setSafeShutdownStatus(const QString &message, bool pending, bool error, bool showToast)
+{
+    if (!pending) {
+        _safeShutdownTimer.stop();
+        _safeShutdownVehicleId = -1;
+        _safeShutdownLinkName.clear();
+    }
+
+    const bool changed = _safeShutdownStatus != message
+        || _safeShutdownPending != pending
+        || _safeShutdownStatusError != error;
+    _safeShutdownStatus = message;
+    _safeShutdownPending = pending;
+    _safeShutdownStatusError = error;
+
+    if (changed) {
+        emit safeShutdownStateChanged();
+    }
+
+    if (showToast && !message.isEmpty()) {
+        qgcApp()->showAppMessage(message);
+    }
+}
+
+void CustomQGCApplication::_handleCommunicationLostChanged(bool communicationLost)
+{
+    Q_UNUSED(communicationLost)
+    _checkSafeShutdownResult();
+}
+
+void CustomQGCApplication::_handleSafeShutdownTimeout()
+{
+    if (!_safeShutdownPending) {
+        return;
+    }
+
+    if (_safeShutdownConfirmed()) {
+        _checkSafeShutdownResult();
+        return;
+    }
+
+    _setSafeShutdownStatus(tr("シャットダウンを確認できませんでした。VOXL側の状態を確認してください。"), false, true, false);
 }
 
 void CustomQGCApplication::_handleTextMessage(int sysid, int componentid, int severity, QString text, QString description)
